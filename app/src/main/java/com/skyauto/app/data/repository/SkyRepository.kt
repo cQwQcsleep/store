@@ -39,36 +39,36 @@ class SkyRepository @Inject constructor(
 ) {
 
     // ---- 认证 ----
-    suspend fun login(username: String, password: String): Result<User> {
+    suspend fun login(username: String, password: String): Result<User> = runCatching {
         val resp = api.login(LoginRequest(username, password))
-        return if (resp.success) {
+        if (resp.success) {
             resp.data?.let { session.onLogin(it) }
-            Result.success(resp.data ?: User())
-        } else Result.failure(SkyApiError(resp.message ?: "登录失败"))
+            resp.data ?: User()
+        } else throw SkyApiError(resp.message ?: "登录失败")
     }
 
-    suspend fun register(email: String, username: String, password: String): Result<User> {
+    suspend fun register(email: String, username: String, password: String): Result<User> = runCatching {
         val resp = api.register(RegisterRequest(email, username, password))
-        return if (resp.success) Result.success(resp.data ?: User())
-        else Result.failure(SkyApiError(resp.message ?: "注册失败"))
+        if (resp.success) resp.data ?: User()
+        else throw SkyApiError(resp.message ?: "注册失败")
     }
 
-    suspend fun sendResetCode(email: String): Result<Unit> =
-        api.sendResetCode(SendResetCodeRequest(email)).let {
-            if (it.success) Result.success(Unit) else Result.failure(SkyApiError(it.message ?: "发送失败"))
-        }
+    suspend fun sendResetCode(email: String): Result<Unit> = runCatching {
+        val it = api.sendResetCode(SendResetCodeRequest(email))
+        if (it.success) Unit else throw SkyApiError(it.message ?: "发送失败")
+    }
 
-    suspend fun resetPassword(email: String, code: String, password: String): Result<Unit> =
-        api.resetPassword(ResetPasswordRequest(email, code, password)).let {
-            if (it.success) Result.success(Unit) else Result.failure(SkyApiError(it.message ?: "重置失败"))
-        }
+    suspend fun resetPassword(email: String, code: String, password: String): Result<Unit> = runCatching {
+        val it = api.resetPassword(ResetPasswordRequest(email, code, password))
+        if (it.success) Unit else throw SkyApiError(it.message ?: "重置失败")
+    }
 
-    suspend fun me(): Result<User> {
+    suspend fun me(): Result<User> = runCatching {
         val resp = api.me()
-        return if (resp.success) {
+        if (resp.success) {
             resp.data?.let { session.onLogin(it) }
-            Result.success(resp.data ?: User())
-        } else Result.failure(SkyApiError(resp.message ?: "未登录"))
+            resp.data ?: User()
+        } else throw SkyApiError(resp.message ?: "未登录")
     }
 
     suspend fun logout(): Result<Unit> {
