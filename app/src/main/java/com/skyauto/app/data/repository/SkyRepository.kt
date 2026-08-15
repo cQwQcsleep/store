@@ -28,6 +28,11 @@ import com.skyauto.app.data.model.User
 import com.skyauto.app.data.network.SkyAutoApi
 import com.skyauto.app.data.session.PersistentCookieJar
 import com.skyauto.app.data.session.SessionManager
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,36 +44,67 @@ class SkyRepository @Inject constructor(
 ) {
 
     // ---- 认证 ----
-    suspend fun login(username: String, password: String): Result<User> = runCatching {
-        val resp = api.login(LoginRequest(username, password))
-        if (resp.success) {
-            resp.data?.let { session.onLogin(it) }
-            resp.data ?: User()
-        } else throw SkyApiError(resp.message ?: "登录失败")
+    suspend fun login(username: String, password: String): Result<User> =
+        safeSuspend({ api.login(LoginRequest(username, password)) }, "登录失败") { resp ->
+            if (resp.success) {
+                resp.data?.let { session.onLogin(it) }
+                resp.data ?: User()
+            } else throw SkyApiError(resp.message ?: "登录失败")
+        }
+
+    suspend fun register(email: String, username: String, password: String): Result<User> =
+        safeSuspend({ api.register(RegisterRequest(email, username, password)) }, "注册失败") { resp ->
+            if (resp.success) resp.data ?: User()
+            else throw SkyApiError(resp.message ?: "注册失败")
+        }
+
+    suspend fun sendResetCode(email: String): Result<Unit> =
+        safeSuspend({ api.sendResetCode(SendResetCodeRequest(email)) }, "发送失败") { resp ->
+            if (resp.success) Unit else throw SkyApiError(resp.message ?: "发送失败")
+        }
+
+    suspend fun resetPassword(email: String, code: String, password: String): Result<Unit> =
+        safeSuspend({ api.resetPassword(ResetPasswordRequest(email, code, password)) }, "重置失败") { resp ->
+            if (resp.success) Unit else throw SkyApiError(resp.message ?: "重置失败")
+        }
+
+    suspend fun me(): Result<User> =
+        safeSuspend({ api.me() }, "未登录") { resp ->
+            if (resp.success) {
+                resp.data?.let { session.onLogin(it) }
+                resp.data ?: User()
+            } else throw SkyApiError(resp.message ?: "未登录")
+        }
+
+    /**
+     * 统一异常安全的网络调用：业务失败抛 [SkyApiError]；
+     * 非 2xx（如 401）由 Retrofit 抛 [HttpException]，此处解析其响应体中的 message，
+     * 避免用户看到生硬的 "HTTP 401"，而是服务端返回的中文提示（如"账号或密码错误"）。
+     */
+    private suspend fun <T, R> safeSuspend(
+        block: suspend () -> T,
+        defaultMsg: String,
+        onOk: (T) -> R
+    ): Result<R> = try {
+        Result.success(onOk(block()))
+    } catch (e: SkyApiError) {
+        Result.failure(e)
+    } catch (e: Throwable) {
+        Result.failure(SkyApiError(extractMessage(e, defaultMsg)))
     }
 
-    suspend fun register(email: String, username: String, password: String): Result<User> = runCatching {
-        val resp = api.register(RegisterRequest(email, username, password))
-        if (resp.success) resp.data ?: User()
-        else throw SkyApiError(resp.message ?: "注册失败")
-    }
-
-    suspend fun sendResetCode(email: String): Result<Unit> = runCatching {
-        val it = api.sendResetCode(SendResetCodeRequest(email))
-        if (it.success) Unit else throw SkyApiError(it.message ?: "发送失败")
-    }
-
-    suspend fun resetPassword(email: String, code: String, password: String): Result<Unit> = runCatching {
-        val it = api.resetPassword(ResetPasswordRequest(email, code, password))
-        if (it.success) Unit else throw SkyApiError(it.message ?: "重置失败")
-    }
-
-    suspend fun me(): Result<User> = runCatching {
-        val resp = api.me()
-        if (resp.success) {
-            resp.data?.let { session.onLogin(it) }
-            resp.data ?: User()
-        } else throw SkyApiError(resp.message ?: "未登录")
+    private fun extractMessage(e: Throwable, default: String): String {
+        if (e is HttpException) {
+            runCatching {
+                val body = e.response()?.errorBody()?.string()
+                if (body != null) {
+                    val msg = Json.parseToJsonElement(body)
+                        .jsonObject["message"]?.jsonPrimitive?.contentOrNull
+                    if (!msg.isNullOrBlank()) return msg
+                }
+            }
+        }
+        return e.message ?: default
     }
 
     suspend fun logout(): Result<Unit> {
