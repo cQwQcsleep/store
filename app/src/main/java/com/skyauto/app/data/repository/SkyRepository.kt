@@ -44,19 +44,27 @@ class SkyRepository @Inject constructor(
 ) {
 
     // ---- 认证 ----
-    suspend fun login(username: String, password: String): Result<User> =
-        safeSuspend({ api.login(LoginRequest(username, password)) }, "登录失败") { resp ->
-            if (resp.success) {
-                resp.data?.let { session.onLogin(it) }
-                resp.data ?: User()
-            } else throw SkyApiError(resp.message ?: "登录失败")
-        }
+    suspend fun login(email: String, password: String): Result<User> =
+        safeSuspend({
+            val resp = api.login(LoginRequest(email, password))
+            if (!resp.success) throw SkyApiError(resp.message ?: "登录失败")
+            // 站点登录响应不含用户数据，需再调用 me() 获取真实用户
+            val me = api.me()
+            val user = me.user ?: throw SkyApiError(me.message ?: "获取用户信息失败")
+            session.onLogin(user)
+            user
+        }, "登录失败") { it }
 
-    suspend fun register(email: String, username: String, password: String): Result<User> =
-        safeSuspend({ api.register(RegisterRequest(email, username, password)) }, "注册失败") { resp ->
-            if (resp.success) resp.data ?: User()
-            else throw SkyApiError(resp.message ?: "注册失败")
-        }
+    suspend fun register(email: String, username: String, password: String, verifyCode: String? = null, inviteCode: String? = null): Result<User> =
+        safeSuspend({
+            val resp = api.register(RegisterRequest(email, username, password, verifyCode, inviteCode))
+            if (!resp.success) throw SkyApiError(resp.message ?: "注册失败")
+            // 注册成功即自动登录，拉取用户信息
+            val me = api.me()
+            val user = me.user ?: throw SkyApiError(me.message ?: "获取用户信息失败")
+            session.onLogin(user)
+            user
+        }, "注册失败") { it }
 
     suspend fun sendResetCode(email: String): Result<Unit> =
         safeSuspend({ api.sendResetCode(SendResetCodeRequest(email)) }, "发送失败") { resp ->
@@ -69,12 +77,12 @@ class SkyRepository @Inject constructor(
         }
 
     suspend fun me(): Result<User> =
-        safeSuspend({ api.me() }, "未登录") { resp ->
-            if (resp.success) {
-                resp.data?.let { session.onLogin(it) }
-                resp.data ?: User()
-            } else throw SkyApiError(resp.message ?: "未登录")
-        }
+        safeSuspend({
+            val resp = api.me()
+            val user = resp.user ?: throw SkyApiError(resp.message ?: "未登录")
+            session.onLogin(user)
+            user
+        }, "未登录") { it }
 
     /**
      * 统一异常安全的网络调用：业务失败抛 [SkyApiError]；

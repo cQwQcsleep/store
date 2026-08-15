@@ -15,15 +15,28 @@ data class ApiResponse<T>(
 // ------------------------------------------------------------------
 @Serializable
 data class LoginRequest(
-    @SerialName("username") val username: String,
+    @SerialName("email") val email: String,
     @SerialName("password") val password: String
+)
+
+/**
+ * 认证类接口（me/login/register）返回的用户字段为 `user` 而非 `data`，
+ * 因此需要单独的响应类型来解析。
+ */
+@Serializable
+data class AuthUserResponse(
+    @SerialName("success") val success: Boolean = false,
+    @SerialName("message") val message: String? = null,
+    @SerialName("user") val user: User? = null
 )
 
 @Serializable
 data class RegisterRequest(
     @SerialName("email") val email: String,
     @SerialName("username") val username: String,
-    @SerialName("password") val password: String
+    @SerialName("password") val password: String,
+    @SerialName("verifyCode") val verifyCode: String? = null,
+    @SerialName("invite_code") val inviteCode: String? = null
 )
 
 @Serializable

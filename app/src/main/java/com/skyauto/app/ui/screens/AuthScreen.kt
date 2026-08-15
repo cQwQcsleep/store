@@ -100,12 +100,12 @@ fun AuthScreen(
 
             when (mode) {
                 AuthMode.LOGIN -> {
-                    AuthField(Icons.Rounded.Person, "用户名", username, { username = it }, KeyboardType.Text)
+                    AuthField(Icons.Rounded.Email, "QQ 邮箱", email, { email = it }, KeyboardType.Email)
                     Spacer(Modifier.height(12.dp))
                     AuthField(Icons.Rounded.Lock, "密码", password, { password = it }, KeyboardType.Password)
                     error?.let { Spacer(Modifier.height(8.dp)); AuthError(it) }
                     Spacer(Modifier.height(20.dp))
-                    AuthButton("登 录", loading) { viewModel.login(username, password) }
+                    AuthButton("登 录", loading) { viewModel.login(email, password) }
                 }
                 AuthMode.REGISTER -> {
                     AuthField(Icons.Rounded.Email, "QQ 邮箱", email, { email = it }, KeyboardType.Email)

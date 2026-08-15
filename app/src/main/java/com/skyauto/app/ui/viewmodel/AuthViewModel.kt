@@ -35,11 +35,11 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch { repo.me() }
     }
 
-    fun login(username: String, password: String, onDone: (Boolean) -> Unit = {}) {
+    fun login(email: String, password: String, onDone: (Boolean) -> Unit = {}) {
         _loginLoading.setLoading(true)
         _error.clearError()
         viewModelScope.launch {
-            repo.login(username.trim(), password)
+            repo.login(email.trim(), password)
                 .onSuccess { onDone(true) }
                 .onFailure { _error.setError(it.message ?: "登录失败"); onDone(false) }
             _loginLoading.setLoading(false)

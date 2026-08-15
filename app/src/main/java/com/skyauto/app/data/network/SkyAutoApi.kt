@@ -6,6 +6,7 @@ import com.skyauto.app.data.model.AccountTaskStatus
 import com.skyauto.app.data.model.AiConfig
 import com.skyauto.app.data.model.AiDiagnoseResponse
 import com.skyauto.app.data.model.ApiResponse
+import com.skyauto.app.data.model.AuthUserResponse
 import com.skyauto.app.data.model.ChatMessage
 import com.skyauto.app.data.model.ChatRoom
 import com.skyauto.app.data.model.CurrencyInfo
@@ -44,16 +45,16 @@ interface SkyAutoApi {
 
     // ---- 认证 ----
     @POST("auth/login")
-    suspend fun login(@Body body: LoginRequest): ApiResponse<User>
+    suspend fun login(@Body body: LoginRequest): ApiResponse<Unit>
 
     @POST("auth/register")
-    suspend fun register(@Body body: RegisterRequest): ApiResponse<User>
+    suspend fun register(@Body body: RegisterRequest): ApiResponse<Unit>
 
     @POST("auth/logout")
     suspend fun logout(): ApiResponse<Unit>
 
     @GET("auth/me")
-    suspend fun me(): ApiResponse<User>
+    suspend fun me(): AuthUserResponse
 
     @POST("auth/send-reset-code")
     suspend fun sendResetCode(@Body body: SendResetCodeRequest): ApiResponse<Unit>
