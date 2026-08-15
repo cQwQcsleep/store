@@ -1,6 +1,8 @@
 package com.skyauto.app.data.network
 
 import com.skyauto.app.data.model.AccountAddStatus
+import com.skyauto.app.data.model.AccountAddTask
+import com.skyauto.app.data.model.AccountConfigRulesResponse
 import com.skyauto.app.data.model.AccountCurrencyResponse
 import com.skyauto.app.data.model.AccountTaskStatusesResponse
 import com.skyauto.app.data.model.AccountsResponse
@@ -8,26 +10,47 @@ import com.skyauto.app.data.model.ActivitiesResponse
 import com.skyauto.app.data.model.AiConfigResponse
 import com.skyauto.app.data.model.AiDiagnoseRequest
 import com.skyauto.app.data.model.AiDiagnoseResponse
+import com.skyauto.app.data.model.AnnouncementsResponse
 import com.skyauto.app.data.model.ApiResponse
 import com.skyauto.app.data.model.AuthUserResponse
+import com.skyauto.app.data.model.ChatMessagesResponse
 import com.skyauto.app.data.model.ChatRoomsResponse
 import com.skyauto.app.data.model.CreateDeviceRequest
 import com.skyauto.app.data.model.DeviceModelsResponse
 import com.skyauto.app.data.model.DevicesResponse
+import com.skyauto.app.data.model.DoneTodayResponse
 import com.skyauto.app.data.model.FeedbackTicketsResponse
+import com.skyauto.app.data.model.ForgeOptionsResponse
+import com.skyauto.app.data.model.FriendAbilityResponse
+import com.skyauto.app.data.model.FriendCodesResponse
+import com.skyauto.app.data.model.FriendRelationsResponse
 import com.skyauto.app.data.model.FriendsResponse
+import com.skyauto.app.data.model.GameInsightsPublicResponse
+import com.skyauto.app.data.model.GameInsightsResponse
+import com.skyauto.app.data.model.HeartFriendsResponse
 import com.skyauto.app.data.model.HeartTradeResponse
+import com.skyauto.app.data.model.HeightApiConfigResponse
+import com.skyauto.app.data.model.HeightQueryResponse
 import com.skyauto.app.data.model.HeightRankingResponse
 import com.skyauto.app.data.model.HeightSubmitRequest
+import com.skyauto.app.data.model.InvitationsResponse
 import com.skyauto.app.data.model.LoginRequest
 import com.skyauto.app.data.model.NotificationsResponse
 import com.skyauto.app.data.model.OnlineCount
+import com.skyauto.app.data.model.OperationsResponse
+import com.skyauto.app.data.model.OrdersResponse
 import com.skyauto.app.data.model.RegisterRequest
 import com.skyauto.app.data.model.ResetPasswordRequest
+import com.skyauto.app.data.model.RuntaskConfigResponse
 import com.skyauto.app.data.model.SchedulesResponse
 import com.skyauto.app.data.model.SendResetCodeRequest
 import com.skyauto.app.data.model.SiteConfigResponse
+import com.skyauto.app.data.model.SpiritIntimacyResponse
+import com.skyauto.app.data.model.TaskHistoryResponse
 import com.skyauto.app.data.model.TaskStatsResponse
+import com.skyauto.app.data.model.TaskStatusResponse
+import com.skyauto.app.data.model.WechatStatusResponse
+import com.skyauto.app.data.model.WorldQuestsResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -135,4 +158,101 @@ interface SkyAutoApi {
 
     @POST("deepseek/diagnose")
     suspend fun aiDiagnose(@Body body: AiDiagnoseRequest): AiDiagnoseResponse
+
+    // ---- 公告 / 邀请 / 世界任务 / 运营数据 ----
+    @GET("system-announcements")
+    suspend fun systemAnnouncements(): AnnouncementsResponse
+
+    @GET("invitations/me")
+    suspend fun myInvitations(): InvitationsResponse
+
+    @GET("world-quests")
+    suspend fun worldQuests(): WorldQuestsResponse
+
+    @GET("stats")
+    suspend fun operationsStats(): OperationsResponse
+
+    // ---- 游戏情报 ----
+    @GET("game-insights/public")
+    suspend fun gameInsightsPublic(): GameInsightsPublicResponse
+
+    @GET("accounts/{id}/game-insights")
+    suspend fun gameInsights(@Path("id") id: Long, @Query("refresh") refresh: Int? = null): GameInsightsResponse
+
+    // ---- 货币合成 ----
+    @GET("accounts/{id}/currency/forge-options")
+    suspend fun forgeOptions(@Path("id") id: Long): ForgeOptionsResponse
+
+    @POST("accounts/{id}/currency/forge")
+    suspend fun forge(@Path("id") id: Long, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    @POST("accounts/{id}/currency/refresh")
+    suspend fun refreshCurrency(@Path("id") id: Long): AccountCurrencyResponse
+
+    // ---- 账号配置规则 ----
+    @GET("account-config-rules")
+    suspend fun accountConfigRules(): AccountConfigRulesResponse
+
+    // ---- 任务执行详情 ----
+    @GET("accounts/{id}/task-history")
+    suspend fun taskHistory(@Path("id") id: Long): TaskHistoryResponse
+
+    @GET("accounts/{id}/task-status")
+    suspend fun taskStatus(@Path("id") id: Long): TaskStatusResponse
+
+    @GET("accounts/{id}/done-today")
+    suspend fun doneToday(@Path("id") id: Long): DoneTodayResponse
+
+    @GET("accounts/{id}/runtask-config")
+    suspend fun runtaskConfig(@Path("id") id: Long): RuntaskConfigResponse
+
+    // ---- 身高（按账号） ----
+    @GET("accounts/{id}/height")
+    suspend fun accountHeight(@Path("id") id: Long): HeightQueryResponse
+
+    @GET("accounts/{id}/height-api-config")
+    suspend fun accountHeightApiConfig(@Path("id") id: Long): HeightApiConfigResponse
+
+    // ---- 好友深度 ----
+    @GET("accounts/{id}/friend-relations")
+    suspend fun friendRelations(@Path("id") id: Long): FriendRelationsResponse
+
+    @GET("accounts/{id}/friend-code/list")
+    suspend fun friendCodeList(@Path("id") id: Long): FriendCodesResponse
+
+    @GET("accounts/{id}/heart-friends")
+    suspend fun heartFriends(@Path("id") id: Long): HeartFriendsResponse
+
+    @GET("accounts/{id}/spirit-intimacy/options")
+    suspend fun spiritIntimacyOptions(@Path("id") id: Long): SpiritIntimacyResponse
+
+    @POST("accounts/{id}/spirit-intimacy/set")
+    suspend fun spiritIntimacySet(@Path("id") id: Long, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    @GET("accounts/{id}/friend-ability/options")
+    suspend fun friendAbilityOptions(@Path("id") id: Long): FriendAbilityResponse
+
+    @POST("accounts/{id}/friend-ability/unlock-batch")
+    suspend fun friendAbilityUnlock(@Path("id") id: Long, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    // ---- 聊天消息 ----
+    @GET("chat/rooms/{id}/messages")
+    suspend fun chatMessages(@Path("id") id: Long): ChatMessagesResponse
+
+    // ---- 订单 / 微信绑定 ----
+    @GET("orders")
+    suspend fun orders(): OrdersResponse
+
+    @GET("wechat/binding/status")
+    suspend fun wechatStatus(): WechatStatusResponse
+
+    // ---- 账号多渠道添加 ----
+    @GET("accounts/add/status/{taskId}")
+    suspend fun accountAddStatus(@Path("taskId") taskId: String): ApiResponse<AccountAddTask>
+
+    @POST("accounts/add/submit_sms")
+    suspend fun accountAddSubmitSms(@Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    @POST("accounts/add/cancel/{taskId}")
+    suspend fun accountAddCancel(@Path("taskId") taskId: String): ApiResponse<Unit>
 }

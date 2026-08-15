@@ -3,14 +3,23 @@ package com.skyauto.app.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Accessibility
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.Diversity2
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.PrecisionManufacturing
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Rule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallet
@@ -28,12 +37,21 @@ object Routes {
     const val ACCOUNTS = "accounts"
     const val DEVICES = "devices"
     const val FRIENDS = "friends"
+    const val FRIEND_DETAIL = "friend_detail"
     const val SPIRITS = "spirits"
     const val TASKS = "tasks"
+    const val TASK_HISTORY = "task_history"
     const val AI = "ai"
     const val CHAT = "chat"
     const val NOTIFICATIONS = "notifications"
     const val SETTINGS = "settings"
+    const val ANNOUNCEMENTS = "announcements"
+    const val INVITATIONS = "invitations"
+    const val WORLD_QUESTS = "world_quests"
+    const val OPERATIONS = "operations"
+    const val GAME_INSIGHTS = "game_insights"
+    const val FORGE = "forge"
+    const val CONFIG_RULES = "config_rules"
 }
 
 /** 二级菜单项 */
@@ -68,7 +86,9 @@ object AppMenu {
             icon = Icons.Outlined.Accessibility,
             children = listOf(
                 MenuLeaf(Routes.HEIGHT, "身高查询", Icons.Outlined.Accessibility),
-                MenuLeaf(Routes.RANKING, "身高排行榜", Icons.Outlined.FitnessCenter)
+                MenuLeaf(Routes.RANKING, "身高排行榜", Icons.Outlined.FitnessCenter),
+                MenuLeaf(Routes.WORLD_QUESTS, "世界任务", Icons.Outlined.Public),
+                MenuLeaf(Routes.GAME_INSIGHTS, "游戏情报", Icons.Outlined.Insights)
             )
         ),
         MenuGroup(
@@ -76,7 +96,8 @@ object AppMenu {
             label = "资源经济",
             icon = Icons.Outlined.Wallet,
             children = listOf(
-                MenuLeaf(Routes.ECONOMY, "货币钱包", Icons.Outlined.Wallet)
+                MenuLeaf(Routes.ECONOMY, "货币钱包", Icons.Outlined.Wallet),
+                MenuLeaf(Routes.FORGE, "货币合成", Icons.Outlined.PrecisionManufacturing)
             )
         ),
         MenuGroup(
@@ -85,7 +106,8 @@ object AppMenu {
             icon = Icons.Outlined.PhoneAndroid,
             children = listOf(
                 MenuLeaf(Routes.ACCOUNTS, "账号管理", Icons.Outlined.PhoneAndroid),
-                MenuLeaf(Routes.DEVICES, "设备管理", Icons.Outlined.PhoneAndroid)
+                MenuLeaf(Routes.DEVICES, "设备管理", Icons.Outlined.PhoneAndroid),
+                MenuLeaf(Routes.CONFIG_RULES, "配置规则", Icons.Outlined.Rule)
             )
         ),
         MenuGroup(
@@ -94,6 +116,7 @@ object AppMenu {
             icon = Icons.Outlined.People,
             children = listOf(
                 MenuLeaf(Routes.FRIENDS, "好友", Icons.Outlined.People),
+                MenuLeaf(Routes.FRIEND_DETAIL, "好友深度", Icons.Outlined.Diversity2),
                 MenuLeaf(Routes.SPIRITS, "灵犀 · 心火", Icons.Outlined.Favorite),
                 MenuLeaf(Routes.CHAT, "聊天室", Icons.Outlined.Chat)
             )
@@ -103,7 +126,18 @@ object AppMenu {
             label = "自动化",
             icon = Icons.Outlined.TaskAlt,
             children = listOf(
-                MenuLeaf(Routes.TASKS, "任务计划", Icons.Outlined.TaskAlt)
+                MenuLeaf(Routes.TASKS, "任务计划", Icons.Outlined.TaskAlt),
+                MenuLeaf(Routes.TASK_HISTORY, "任务执行详情", Icons.Outlined.History)
+            )
+        ),
+        MenuGroup(
+            key = "ops",
+            label = "公告运营",
+            icon = Icons.Outlined.Campaign,
+            children = listOf(
+                MenuLeaf(Routes.ANNOUNCEMENTS, "系统公告", Icons.Outlined.Campaign),
+                MenuLeaf(Routes.INVITATIONS, "邀请有礼", Icons.Outlined.PersonAdd),
+                MenuLeaf(Routes.OPERATIONS, "运营数据", Icons.Outlined.BarChart)
             )
         ),
         MenuGroup(

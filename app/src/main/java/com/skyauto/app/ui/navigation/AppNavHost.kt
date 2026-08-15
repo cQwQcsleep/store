@@ -12,17 +12,26 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.skyauto.app.ui.screens.AccountsScreen
 import com.skyauto.app.ui.screens.AiScreen
+import com.skyauto.app.ui.screens.AnnouncementsScreen
 import com.skyauto.app.ui.screens.ChatScreen
+import com.skyauto.app.ui.screens.ConfigRulesScreen
 import com.skyauto.app.ui.screens.DashboardScreen
 import com.skyauto.app.ui.screens.DevicesScreen
 import com.skyauto.app.ui.screens.EconomyScreen
+import com.skyauto.app.ui.screens.ForgeScreen
+import com.skyauto.app.ui.screens.FriendDetailScreen
 import com.skyauto.app.ui.screens.FriendsScreen
+import com.skyauto.app.ui.screens.GameInsightsScreen
 import com.skyauto.app.ui.screens.HeightScreen
+import com.skyauto.app.ui.screens.InvitationsScreen
 import com.skyauto.app.ui.screens.NotificationsScreen
+import com.skyauto.app.ui.screens.OperationsScreen
 import com.skyauto.app.ui.screens.RankingScreen
 import com.skyauto.app.ui.screens.SettingsScreen
 import com.skyauto.app.ui.screens.SpiritsScreen
+import com.skyauto.app.ui.screens.TaskHistoryScreen
 import com.skyauto.app.ui.screens.TasksScreen
+import com.skyauto.app.ui.screens.WorldQuestsScreen
 
 @Composable
 fun AppNavHost(
@@ -56,15 +65,24 @@ fun AppNavHost(
                 composable(Routes.DASHBOARD) { DashboardScreen() }
                 composable(Routes.HEIGHT) { HeightScreen() }
                 composable(Routes.RANKING) { RankingScreen() }
+                composable(Routes.WORLD_QUESTS) { WorldQuestsScreen() }
+                composable(Routes.GAME_INSIGHTS) { GameInsightsScreen() }
                 composable(Routes.ECONOMY) { EconomyScreen() }
+                composable(Routes.FORGE) { ForgeScreen() }
                 composable(Routes.ACCOUNTS) { AccountsScreen() }
                 composable(Routes.DEVICES) { DevicesScreen() }
+                composable(Routes.CONFIG_RULES) { ConfigRulesScreen() }
                 composable(Routes.FRIENDS) { FriendsScreen() }
+                composable(Routes.FRIEND_DETAIL) { FriendDetailScreen() }
                 composable(Routes.SPIRITS) { SpiritsScreen() }
                 composable(Routes.TASKS) { TasksScreen() }
+                composable(Routes.TASK_HISTORY) { TaskHistoryScreen() }
                 composable(Routes.AI) { AiScreen() }
                 composable(Routes.CHAT) { ChatScreen() }
                 composable(Routes.NOTIFICATIONS) { NotificationsScreen() }
+                composable(Routes.ANNOUNCEMENTS) { AnnouncementsScreen() }
+                composable(Routes.INVITATIONS) { InvitationsScreen() }
+                composable(Routes.OPERATIONS) { OperationsScreen() }
                 composable(Routes.SETTINGS) {
                     SettingsScreen(onLogout = { onRequestAuth() })
                 }

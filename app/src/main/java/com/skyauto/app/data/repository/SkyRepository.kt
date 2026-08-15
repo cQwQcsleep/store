@@ -265,6 +265,199 @@ class SkyRepository @Inject constructor(
             if (it.success) Result.success(it)
             else Result.failure(SkyApiError(it.message ?: "无回复"))
         }
+
+    // ---- 公告 ----
+    suspend fun systemAnnouncements(): Result<List<com.skyauto.app.data.model.AnnouncementFull>> =
+        api.systemAnnouncements().let {
+            if (it.success) Result.success(it.announcements)
+            else Result.failure(SkyApiError("加载公告失败"))
+        }
+
+    // ---- 邀请 ----
+    suspend fun myInvitations(): Result<com.skyauto.app.data.model.InvitationsResponse> =
+        api.myInvitations().let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载邀请失败"))
+        }
+
+    // ---- 世界任务 ----
+    suspend fun worldQuests(): Result<List<com.skyauto.app.data.model.WorldQuest>> =
+        api.worldQuests().let {
+            if (it.success) Result.success(it.quests)
+            else Result.failure(SkyApiError("加载世界任务失败"))
+        }
+
+    // ---- 运营数据 ----
+    suspend fun operationsStats(): Result<com.skyauto.app.data.model.OperationsResponse> =
+        api.operationsStats().let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载运营数据失败"))
+        }
+
+    // ---- 游戏情报 ----
+    suspend fun gameInsightsPublic(): Result<com.skyauto.app.data.model.GameInsightsPublicResponse> =
+        api.gameInsightsPublic().let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载公开情报失败"))
+        }
+
+    suspend fun gameInsights(accountId: Long, refresh: Boolean = false): Result<com.skyauto.app.data.model.GameInsightsResponse> =
+        api.gameInsights(accountId, if (refresh) 1 else null).let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载游戏情报失败"))
+        }
+
+    // ---- 货币合成 ----
+    suspend fun forgeOptions(accountId: Long): Result<com.skyauto.app.data.model.ForgeOptionsResponse> =
+        api.forgeOptions(accountId).let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载合成选项失败"))
+        }
+
+    suspend fun forge(accountId: Long, optionKey: String, count: Long): Result<Unit> =
+        api.forge(accountId, mapOf("option_key" to optionKey, "count" to count)).let {
+            if (it.success) Result.success(Unit)
+            else Result.failure(SkyApiError(it.message ?: "合成失败"))
+        }
+
+    suspend fun refreshCurrency(accountId: Long): Result<CurrencyInfo> =
+        api.refreshCurrency(accountId).let {
+            if (it.success) Result.success(it.currency ?: CurrencyInfo())
+            else Result.failure(SkyApiError("刷新失败"))
+        }
+
+    // ---- 账号配置规则 ----
+    suspend fun accountConfigRules(): Result<com.skyauto.app.data.model.AccountConfigRulesResponse> =
+        api.accountConfigRules().let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载配置规则失败"))
+        }
+
+    // ---- 任务执行详情 ----
+    suspend fun taskHistory(accountId: Long): Result<List<com.skyauto.app.data.model.TaskRecord>> =
+        api.taskHistory(accountId).let {
+            if (it.success) Result.success(it.records)
+            else Result.failure(SkyApiError("加载任务历史失败"))
+        }
+
+    suspend fun taskStatus(accountId: Long): Result<com.skyauto.app.data.model.TaskStatusResponse> =
+        runCatching { api.taskStatus(accountId) }
+
+    suspend fun doneToday(accountId: Long): Result<com.skyauto.app.data.model.DoneTodayResponse> =
+        runCatching { api.doneToday(accountId) }
+
+    suspend fun runtaskConfig(accountId: Long): Result<com.skyauto.app.data.model.RuntaskConfigResponse> =
+        runCatching { api.runtaskConfig(accountId) }
+
+    // ---- 身高（按账号） ----
+    suspend fun accountHeight(accountId: Long): Result<com.skyauto.app.data.model.HeightQueryResponse> =
+        api.accountHeight(accountId).let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载身高查询失败"))
+        }
+
+    suspend fun accountHeightApiConfig(accountId: Long): Result<com.skyauto.app.data.model.HeightApiConfigResponse> =
+        runCatching { api.accountHeightApiConfig(accountId) }
+
+    // ---- 好友深度 ----
+    suspend fun friendRelations(accountId: Long): Result<List<com.skyauto.app.data.model.FriendRelation>> =
+        api.friendRelations(accountId).let {
+            if (it.success) Result.success(it.friends)
+            else Result.failure(SkyApiError("加载好友关系失败"))
+        }
+
+    suspend fun friendCodeList(accountId: Long): Result<List<com.skyauto.app.data.model.FriendCodeInvite>> =
+        api.friendCodeList(accountId).let { resp ->
+            if (resp.success) Result.success(resp.items + (resp.data?.invites ?: emptyList()))
+            else Result.failure(SkyApiError("加载好友码失败"))
+        }
+
+    suspend fun heartFriends(accountId: Long): Result<com.skyauto.app.data.model.HeartFriendsResponse> =
+        api.heartFriends(accountId).let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载送心好友失败"))
+        }
+
+    suspend fun spiritIntimacyOptions(accountId: Long): Result<com.skyauto.app.data.model.SpiritIntimacyResponse> =
+        api.spiritIntimacyOptions(accountId).let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载亲密选项失败"))
+        }
+
+    suspend fun spiritIntimacySet(accountId: Long, key: String, value: Long): Result<Unit> =
+        api.spiritIntimacySet(accountId, mapOf("key" to key, "value" to value)).let {
+            if (it.success) Result.success(Unit)
+            else Result.failure(SkyApiError(it.message ?: "设置失败"))
+        }
+
+    suspend fun friendAbilityOptions(accountId: Long): Result<com.skyauto.app.data.model.FriendAbilityResponse> =
+        api.friendAbilityOptions(accountId).let {
+            if (it.success) Result.success(it)
+            else Result.failure(SkyApiError("加载能力节点失败"))
+        }
+
+    suspend fun friendAbilityUnlock(accountId: Long, nodeId: String): Result<Unit> =
+        api.friendAbilityUnlock(accountId, mapOf("node_id" to nodeId)).let {
+            if (it.success) Result.success(Unit)
+            else Result.failure(SkyApiError(it.message ?: "解锁失败"))
+        }
+
+    // ---- 聊天消息 ----
+    suspend fun chatMessages(roomId: Long): Result<List<com.skyauto.app.data.model.ChatMessage>> =
+        api.chatMessages(roomId).let {
+            if (it.success) Result.success(it.messages)
+            else Result.failure(SkyApiError("加载聊天消息失败"))
+        }
+
+    // ---- 订单 / 微信绑定 ----
+    suspend fun orders(): Result<List<com.skyauto.app.data.model.Order>> =
+        api.orders().let {
+            if (it.success) Result.success(it.orders)
+            else Result.failure(SkyApiError("加载订单失败"))
+        }
+
+    suspend fun wechatStatus(): Result<com.skyauto.app.data.model.WechatStatusResponse> =
+        runCatching { api.wechatStatus() }
+
+    // ---- 账号多渠道添加 ----
+    suspend fun accountAddStart(
+        platform: String,
+        account: String? = null,
+        password: String? = null,
+        loginType: String? = null,
+        extra: Map<String, Any?> = emptyMap()
+    ): Result<com.skyauto.app.data.model.AccountAddStatus> =
+        api.accountAddStart(
+            mapOf(
+                "platform" to platform,
+                "account" to (account ?: ""),
+                "password" to (password ?: ""),
+                "login_type" to (loginType ?: ""),
+            ) + extra
+        ).let {
+            if (it.success) Result.success(it.data ?: com.skyauto.app.data.model.AccountAddStatus())
+            else Result.failure(SkyApiError(it.message ?: "发起添加失败"))
+        }
+
+    suspend fun accountAddStatus(taskId: String): Result<com.skyauto.app.data.model.AccountAddTask> =
+        api.accountAddStatus(taskId).let { resp ->
+            if (resp.success) {
+                if (resp.data != null) Result.success(resp.data)
+                else Result.failure(SkyApiError(resp.message ?: "任务处理中"))
+            } else Result.failure(SkyApiError(resp.message ?: "查询失败"))
+        }
+
+    suspend fun accountAddSubmitSms(taskId: String, code: String): Result<Unit> =
+        api.accountAddSubmitSms(mapOf("task_id" to taskId, "code" to code)).let {
+            if (it.success) Result.success(Unit)
+            else Result.failure(SkyApiError(it.message ?: "提交失败"))
+        }
+
+    suspend fun accountAddCancel(taskId: String): Result<Unit> =
+        api.accountAddCancel(taskId).let {
+            if (it.success) Result.success(Unit)
+            else Result.failure(SkyApiError(it.message ?: "取消失败"))
+        }
 }
 
 class SkyApiError(message: String) : Exception(message)
