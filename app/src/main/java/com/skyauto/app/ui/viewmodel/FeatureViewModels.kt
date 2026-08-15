@@ -8,7 +8,6 @@ import com.skyauto.app.data.model.DashboardStats
 import com.skyauto.app.data.model.Device
 import com.skyauto.app.data.model.DeviceModel
 import com.skyauto.app.data.model.Friend
-import com.skyauto.app.data.model.FriendCode
 import com.skyauto.app.data.model.HeightInfo
 import com.skyauto.app.data.model.HeightRankingEntry
 import com.skyauto.app.data.model.NotificationItem
@@ -68,6 +67,8 @@ class HeightViewModel @Inject constructor(private val repo: SkyRepository) : Vie
 @HiltViewModel
 class EconomyViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
     val currency = MutableStateFlow<CurrencyInfo?>(null)
+    val accountName = MutableStateFlow<String?>(null)
+    val hasAccount = MutableStateFlow(false)
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
@@ -75,18 +76,24 @@ class EconomyViewModel @Inject constructor(private val repo: SkyRepository) : Vi
     fun load() {
         loading.value = true
         viewModelScope.launch {
-            repo.currency().onSuccess { currency.value = it }
+            repo.accounts()
+                .onSuccess { accounts ->
+                    val first = accounts.firstOrNull()
+                    hasAccount.value = first != null
+                    if (first != null) {
+                        accountName.value = first.displayUsername ?: first.account ?: "账号 #${first.id}"
+                        repo.accountCurrency(first.id ?: 0L)
+                            .onSuccess { currency.value = it }
+                            .onFailure { message.value = it.message }
+                    } else {
+                        currency.value = null
+                    }
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
     }
-    fun refresh() {
-        viewModelScope.launch {
-            repo.refreshCurrency()
-                .onSuccess { currency.value = it; message.value = "已刷新" }
-                .onFailure { message.value = it.message }
-        }
-    }
+    fun refresh() = load()
 }
 
 @HiltViewModel
@@ -135,7 +142,6 @@ class DevicesViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 @HiltViewModel
 class FriendsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
     val friends = MutableStateFlow<List<Friend>>(emptyList())
-    val codes = MutableStateFlow<List<FriendCode>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
@@ -143,8 +149,9 @@ class FriendsViewModel @Inject constructor(private val repo: SkyRepository) : Vi
     fun load() {
         loading.value = true
         viewModelScope.launch {
-            repo.friends().onSuccess { friends.value = it }
-            repo.friendCodes().onSuccess { codes.value = it }
+            repo.friends()
+                .onSuccess { friends.value = it }
+                .onFailure { message.value = it.message }
             loading.value = false
         }
     }
@@ -152,13 +159,19 @@ class FriendsViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 
 @HiltViewModel
 class SpiritsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+    val heartTrade = MutableStateFlow<com.skyauto.app.data.model.HeartTradeResponse?>(null)
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
         loading.value = true
-        viewModelScope.launch { loading.value = false }
+        viewModelScope.launch {
+            repo.heartTrade()
+                .onSuccess { heartTrade.value = it }
+                .onFailure { message.value = it.message }
+            loading.value = false
+        }
     }
 }
 
@@ -178,7 +191,7 @@ class TasksViewModel @Inject constructor(private val repo: SkyRepository) : View
             loading.value = false
         }
     }
-    fun submit(accountId: String, type: String) {
+    fun submit(accountId: Long, type: String) {
         viewModelScope.launch {
             repo.submitTask(accountId, type)
                 .onSuccess { message.value = "任务已提交" }

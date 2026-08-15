@@ -1,5 +1,6 @@
 package com.skyauto.app.ui.screens
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -47,12 +48,24 @@ fun AccountsScreen(viewModel: AccountsViewModel = hiltViewModel()) {
             accounts.forEach { account ->
                 GlassCard {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(account.name ?: "未命名", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                account.displayUsername ?: account.account ?: "未命名账号",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            account.deviceName?.let {
+                                Text("设备：$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                         Text(statusText(account.status), style = MaterialTheme.typography.labelMedium, color = statusColor(account.status))
                     }
-                    Text("平台：${account.platform ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    account.height?.let {
-                        Text("身高：%.2f cm".format(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                        Text("平台：${account.platform ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text("登录方式：${account.loginType ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    account.lastActivityAt?.let {
+                        Text("最近活动：${it.take(16).replace("T", " ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -61,15 +74,15 @@ fun AccountsScreen(viewModel: AccountsViewModel = hiltViewModel()) {
 }
 
 private fun statusText(status: String?): String = when (status) {
-    "online" -> "在线"
-    "offline" -> "离线"
-    "pending" -> "待处理"
+    "在线" -> "在线"
+    "离线" -> "离线"
+    "pending", "待处理" -> "待处理"
     else -> status ?: "未知"
 }
 
 @Composable
 private fun statusColor(status: String?): androidx.compose.ui.graphics.Color = when (status) {
-    "online" -> GrassGreen
-    "offline" -> MaterialTheme.colorScheme.onSurfaceVariant
+    "在线" -> GrassGreen
+    "离线" -> MaterialTheme.colorScheme.onSurfaceVariant
     else -> MaterialTheme.colorScheme.tertiary
 }

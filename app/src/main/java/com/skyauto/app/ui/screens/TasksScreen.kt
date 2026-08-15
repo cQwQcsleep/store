@@ -1,5 +1,6 @@
 package com.skyauto.app.ui.screens
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,18 +49,35 @@ fun TasksScreen(viewModel: TasksViewModel = hiltViewModel()) {
             schedules.forEach { schedule ->
                 GlassCard {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            schedule.taskType ?: "任务",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Switch(checked = schedule.enabled == true, onCheckedChange = null)
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                schedule.accountName?.takeIf { it.isNotBlank() } ?: "账号 #${schedule.accountId ?: "-"}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                "任务：" + schedule.taskTypes.joinToString("、") { TASK_LABELS[it] ?: it },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = schedule.active, onCheckedChange = null)
                     }
-                    Text("账号：${schedule.accountId ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("下次执行：${schedule.nextRun ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("每日时段：${schedule.timeOfDay ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("周期：${schedule.startDate ?: "-"} ~ ${schedule.endDate ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
 }
+
+private val TASK_LABELS = mapOf(
+    "daily" to "每日任务",
+    "runtask" to "跑图",
+    "world" to "大世界",
+    "fire" to "收火",
+    "receive_fire" to "收心火",
+    "seasonal_wax" to "季节蜡",
+    "dye" to "染色",
+    "wings" to "光翼"
+)

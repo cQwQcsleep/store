@@ -73,11 +73,11 @@ fun RankingScreen(viewModel: HeightViewModel = hiltViewModel()) {
                             }
                             Spacer(Modifier.size(14.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(entry.username ?: "匿名玩家", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text(entry.label ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(entry.heightLabel ?: "身高 #${(entry.heightVal ?: 0).toLong()}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text("身高级别：${entry.heightLabel ?: "-"} · 比例 ${entry.scale ?: 0.0}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text(
-                                entry.height?.let { "%.2f".format(it) } ?: "--",
+                                entry.heightValue?.let { "%.2f".format(it) } ?: "--",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary

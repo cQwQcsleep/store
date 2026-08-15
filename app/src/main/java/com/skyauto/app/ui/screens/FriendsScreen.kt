@@ -24,17 +24,20 @@ import com.skyauto.app.ui.viewmodel.FriendsViewModel
 @Composable
 fun FriendsScreen(viewModel: FriendsViewModel = hiltViewModel()) {
     val friends by viewModel.friends.collectAsState()
-    val codes by viewModel.codes.collectAsState()
     val loading by viewModel.loading.collectAsState()
+    val message by viewModel.message.collectAsState()
 
     AppScreen(title = "好友") {
         GradientHero(
             title = "好友管理",
-            subtitle = "好友关系 · 好友码 · 好友树",
+            subtitle = "好友关系一览",
             colors = listOf(HyperLavender, HyperBlue)
         )
 
         HyperLoader(loading)
+        message?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
 
         SectionTitle("好友列表")
         if (friends.isEmpty() && !loading) {
@@ -48,25 +51,6 @@ fun FriendsScreen(viewModel: FriendsViewModel = hiltViewModel()) {
                     }
                     friend.note?.let {
                         Text("备注：$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-
-        SectionTitle("好友码")
-        if (codes.isEmpty() && !loading) {
-            EmptyState("暂无好友码")
-        } else {
-            codes.forEach { fc ->
-                GlassCard {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(fc.code ?: "-", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        val used = fc.used == true
-                        Text(
-                            if (used) "已使用" else "可用",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (used) MaterialTheme.colorScheme.onSurfaceVariant else com.skyauto.app.ui.theme.GrassGreen
-                        )
                     }
                 }
             }

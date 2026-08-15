@@ -66,7 +66,7 @@ fun DevicesScreen(viewModel: DevicesViewModel = hiltViewModel()) {
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(),
             supportingText = {
-                if (models.isNotEmpty()) Text("可选：" + models.joinToString(" / ") { it.label ?: it.id ?: "" })
+                if (models.isNotEmpty()) Text("可选：" + models.joinToString(" / ") { it.name ?: it.model ?: it.brand ?: "" })
             }
         )
         Button(
@@ -90,9 +90,9 @@ fun DevicesScreen(viewModel: DevicesViewModel = hiltViewModel()) {
                 GlassCard {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(device.name ?: "设备 #${device.id ?: "-"}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        Text(device.status ?: "未知", style = MaterialTheme.typography.labelMedium, color = com.skyauto.app.ui.theme.HyperBlue)
+                        Text(device.platform ?: "未知", style = MaterialTheme.typography.labelMedium, color = com.skyauto.app.ui.theme.HyperBlue)
                     }
-                    Text("型号：${device.model ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("设备 ID：${device.deviceId ?: "-"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
