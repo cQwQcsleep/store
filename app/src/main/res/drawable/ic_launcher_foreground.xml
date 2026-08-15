@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Sky flame / moth glyph -->
+    <path
+        android:fillColor="#6C8CFF"
+        android:pathData="M54,30 C66,42 74,52 74,64 C74,76 66,82 54,82 C42,82 34,76 34,64 C34,52 42,42 54,30 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.9"
+        android:pathData="M54,42 C60,48 64,54 64,62 C64,68 60,72 54,72 C48,72 44,68 44,62 C44,54 48,48 54,42 Z" />
+    <path
+        android:fillColor="#FFD9A0"
+        android:pathData="M54,50 L58,58 L54,66 L50,58 Z" />
+</vector>
