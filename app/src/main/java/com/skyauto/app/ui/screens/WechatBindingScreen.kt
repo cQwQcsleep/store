@@ -1,16 +1,12 @@
 package com.skyauto.app.ui.screens
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -74,6 +70,15 @@ fun WechatBindingScreen(viewModel: WechatBindingViewModel = hiltViewModel()) {
                 InfoRow("服务已配置", s.configured)
                 InfoRow("通知已开启", s.notificationsEnabled)
                 InfoRow("已订阅", s.subscribed)
+            }
+
+            SectionTitle("绑定操作")
+            Button(
+                onClick = { viewModel.getBindingCode() },
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (s.bound) "重新生成绑定码" else "生成绑定码")
             }
         }
     }

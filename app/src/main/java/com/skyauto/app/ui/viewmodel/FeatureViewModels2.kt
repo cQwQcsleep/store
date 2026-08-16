@@ -498,6 +498,24 @@ class FeedbackViewModel @Inject constructor(
             loading.value = false
         }
     }
+    fun reply(ticketId: String, content: String) {
+        if (content.isBlank()) {
+            message.value = "请输入回复内容"
+            return
+        }
+        viewModelScope.launch {
+            repo.replyTicket(ticketId, content)
+                .onSuccess { message.value = "回复已发送"; load() }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun close(ticketId: String) {
+        viewModelScope.launch {
+            repo.closeTicket(ticketId)
+                .onSuccess { message.value = "工单已关闭"; load() }
+                .onFailure { message.value = it.message }
+        }
+    }
 }
 
 @HiltViewModel
@@ -518,6 +536,15 @@ class WechatBindingViewModel @Inject constructor(
                 .onSuccess { status.value = it; cache.put(Routes.WECHAT, it) }
                 .onFailure { message.value = it.message }
             loading.value = false
+        }
+    }
+    fun getBindingCode() {
+        viewModelScope.launch {
+            repo.wechatBindingCode()
+                .onSuccess { code ->
+                    message.value = code.bindingCode?.let { "绑定码：$it" } ?: (code.message ?: "绑定码已生成")
+                }
+                .onFailure { message.value = it.message }
         }
     }
 }
@@ -581,6 +608,22 @@ class FriendCodeViewModel @Inject constructor(private val repo: SkyRepository) :
         viewModelScope.launch {
             repo.friendCodeList(id)
                 .onSuccess { invites.value = it }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun generate(nickname: String) {
+        val id = selectedAccountId.value ?: return
+        viewModelScope.launch {
+            repo.generateFriendCode(id, nickname)
+                .onSuccess { message.value = "好友码已生成"; loadAccount(id) }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun accept(link: String, nickname: String? = null) {
+        val id = selectedAccountId.value ?: return
+        viewModelScope.launch {
+            repo.acceptFriendCode(id, link, nickname)
+                .onSuccess { message.value = "好友码已接受"; loadAccount(id) }
                 .onFailure { message.value = it.message }
         }
     }

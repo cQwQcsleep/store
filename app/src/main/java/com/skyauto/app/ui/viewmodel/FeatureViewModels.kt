@@ -238,6 +238,17 @@ class SpiritsViewModel @Inject constructor(
             loading.value = false
         }
     }
+    fun createBatch(supplierAccountIds: List<Long>, receiverAccountId: Long) {
+        if (supplierAccountIds.isEmpty()) {
+            message.value = "请先选择送心方账号"
+            return
+        }
+        viewModelScope.launch {
+            repo.createHeartBatch(supplierAccountIds, receiverAccountId)
+                .onSuccess { message.value = "心火批次已创建"; load() }
+                .onFailure { message.value = it.message }
+        }
+    }
 }
 
 @HiltViewModel
@@ -246,6 +257,7 @@ class TasksViewModel @Inject constructor(
     private val cache: HubPreloadCache
 ) : ViewModel() {
     val schedules = MutableStateFlow<List<Schedule>>(emptyList())
+    val accounts = MutableStateFlow<List<Account>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
@@ -260,6 +272,8 @@ class TasksViewModel @Inject constructor(
                     cache.put(Routes.TASKS, it)
                 }
                 .onFailure { message.value = it.message }
+            repo.accounts()
+                .onSuccess { accounts.value = it }
             loading.value = false
         }
     }
@@ -267,6 +281,48 @@ class TasksViewModel @Inject constructor(
         viewModelScope.launch {
             repo.submitTask(accountId, type)
                 .onSuccess { message.value = "任务已提交" }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun stopAll(accountId: Long) {
+        viewModelScope.launch {
+            repo.stopAllTasks(accountId)
+                .onSuccess { message.value = "已停止全部任务"; load() }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun reset(accountId: Long, taskTypes: List<String>? = null) {
+        viewModelScope.launch {
+            repo.resetTasks(accountId, taskTypes)
+                .onSuccess { message.value = "任务已重置"; load() }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun createSchedule(
+        accountId: Long,
+        taskTypes: List<String>,
+        timeOfDay: String,
+        startDate: String? = null,
+        endDate: String? = null
+    ) {
+        viewModelScope.launch {
+            repo.createSchedule(accountId, taskTypes, timeOfDay, startDate, endDate)
+                .onSuccess { message.value = "定时计划已创建"; load() }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun toggleSchedule(schedule: Schedule, active: Boolean) {
+        val id = schedule.id ?: return
+        viewModelScope.launch {
+            repo.updateSchedule(id, active)
+                .onSuccess { message.value = if (active) "已启用" else "已停用"; load() }
+                .onFailure { message.value = it.message }
+        }
+    }
+    fun removeSchedule(scheduleId: Long) {
+        viewModelScope.launch {
+            repo.deleteSchedule(scheduleId)
+                .onSuccess { message.value = "定时计划已删除"; load() }
                 .onFailure { message.value = it.message }
         }
     }

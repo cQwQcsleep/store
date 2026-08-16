@@ -24,6 +24,7 @@ import com.skyauto.app.data.model.Schedule
 import com.skyauto.app.data.model.SendResetCodeRequest
 import com.skyauto.app.data.model.SiteConfig
 import com.skyauto.app.data.model.User
+import com.skyauto.app.data.model.WechatBindingCodeResponse
 import com.skyauto.app.data.network.SkyAutoApi
 import com.skyauto.app.data.session.PersistentCookieJar
 import com.skyauto.app.data.session.SessionManager
@@ -221,6 +222,85 @@ class SkyRepository @Inject constructor(
     suspend fun submitTask(accountId: Long, type: String): Result<Unit> =
         safeCall { api.submitTask(mapOf("account_id" to accountId, "task_type" to type)) }.map {
             if (it.success) Unit else throw SkyApiError(it.message ?: "提交失败")
+        }
+
+    suspend fun stopAllTasks(accountId: Long): Result<Unit> =
+        safeCall { api.stopAllTasks(accountId) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "停止失败")
+        }
+
+    suspend fun resetTasks(accountId: Long, taskTypes: List<String>? = null): Result<Unit> =
+        safeCall { api.resetTasks(accountId, if (taskTypes.isNullOrEmpty()) emptyMap() else mapOf("task_types" to taskTypes)) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "重置失败")
+        }
+
+    suspend fun createSchedule(
+        accountId: Long,
+        taskTypes: List<String>,
+        timeOfDay: String,
+        startDate: String? = null,
+        endDate: String? = null
+    ): Result<Unit> =
+        safeCall {
+            api.createSchedule(
+                mapOf(
+                    "account_id" to accountId,
+                    "task_types" to taskTypes,
+                    "time_of_day" to timeOfDay,
+                    "start_date" to (startDate ?: ""),
+                    "end_date" to (endDate ?: ""),
+                    "run_now" to false
+                )
+            )
+        }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "创建失败")
+        }
+
+    suspend fun updateSchedule(scheduleId: Long, active: Boolean): Result<Unit> =
+        safeCall { api.updateSchedule(scheduleId, mapOf("active" to active)) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "更新失败")
+        }
+
+    suspend fun deleteSchedule(scheduleId: Long): Result<Unit> =
+        safeCall { api.deleteSchedule(scheduleId) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "删除失败")
+        }
+
+    suspend fun wechatBindingCode(): Result<WechatBindingCodeResponse> =
+        runCatching { api.wechatBindingCode() }
+
+    suspend fun generateFriendCode(accountId: Long, nickname: String): Result<Unit> =
+        safeCall { api.generateFriendCode(accountId, mapOf("nickname" to nickname)) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "生成失败")
+        }
+
+    suspend fun acceptFriendCode(accountId: Long, link: String, nickname: String? = null): Result<Unit> =
+        safeCall { api.acceptFriendCode(accountId, mapOf("link" to link, "nickname" to (nickname ?: ""))) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "接受失败")
+        }
+
+    suspend fun createHeartBatch(supplierAccountIds: List<Long>, receiverAccountId: Long): Result<Unit> =
+        safeCall {
+            api.createHeartBatch(
+                mapOf(
+                    "supplier_account_ids" to supplierAccountIds,
+                    "receiver_account_id" to receiverAccountId,
+                    "confirm" to true,
+                    "request_id" to java.util.UUID.randomUUID().toString()
+                )
+            )
+        }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "创建批次失败")
+        }
+
+    suspend fun replyTicket(ticketId: String, content: String): Result<Unit> =
+        safeCall { api.replyTicket(ticketId, mapOf("content" to content)) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "回复失败")
+        }
+
+    suspend fun closeTicket(ticketId: String): Result<Unit> =
+        safeCall { api.closeTicket(ticketId) }.map {
+            if (it.success) Unit else throw SkyApiError(it.message ?: "关闭失败")
         }
 
     // ---- 通知 / 反馈 / 活动 ----

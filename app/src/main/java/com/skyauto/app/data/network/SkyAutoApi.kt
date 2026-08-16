@@ -49,11 +49,14 @@ import com.skyauto.app.data.model.SpiritIntimacyResponse
 import com.skyauto.app.data.model.TaskHistoryResponse
 import com.skyauto.app.data.model.TaskStatsResponse
 import com.skyauto.app.data.model.TaskStatusResponse
+import com.skyauto.app.data.model.WechatBindingCodeResponse
 import com.skyauto.app.data.model.WechatStatusResponse
 import com.skyauto.app.data.model.WorldQuestsResponse
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -255,4 +258,43 @@ interface SkyAutoApi {
 
     @POST("accounts/add/cancel/{taskId}")
     suspend fun accountAddCancel(@Path("taskId") taskId: String): ApiResponse<Unit>
+
+    // ---- 任务控制（按账号） ----
+    @POST("accounts/{id}/tasks/stop_all")
+    suspend fun stopAllTasks(@Path("id") id: Long): ApiResponse<Unit>
+
+    @POST("accounts/{id}/tasks/reset")
+    suspend fun resetTasks(@Path("id") id: Long, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    // ---- 定时计划（增 / 改 / 删） ----
+    @POST("schedules")
+    suspend fun createSchedule(@Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    @PUT("schedules/{id}")
+    suspend fun updateSchedule(@Path("id") id: Long, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    @DELETE("schedules/{id}")
+    suspend fun deleteSchedule(@Path("id") id: Long): ApiResponse<Unit>
+
+    // ---- 微信绑定码 ----
+    @POST("wechat/binding/code")
+    suspend fun wechatBindingCode(): WechatBindingCodeResponse
+
+    // ---- 好友码（生成 / 接受） ----
+    @POST("accounts/{id}/friend-code")
+    suspend fun generateFriendCode(@Path("id") id: Long, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    @POST("accounts/{id}/friend-code/accept")
+    suspend fun acceptFriendCode(@Path("id") id: Long, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    // ---- 心火批次 ----
+    @POST("heart-trade/batches")
+    suspend fun createHeartBatch(@Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    // ---- 反馈工单（回复 / 关闭） ----
+    @POST("feedback/tickets/{id}/messages")
+    suspend fun replyTicket(@Path("id") id: String, @Body body: Map<String, Any?>): ApiResponse<Unit>
+
+    @POST("feedback/tickets/{id}/close")
+    suspend fun closeTicket(@Path("id") id: String): ApiResponse<Unit>
 }

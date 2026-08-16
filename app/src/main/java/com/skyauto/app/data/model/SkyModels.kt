@@ -1012,6 +1012,17 @@ data class WechatStatusResponse(
 )
 
 @Serializable
+data class WechatBindingCodeResponse(
+    @SerialName("binding_code") val bindingCode: String? = null,
+    @SerialName("expires_at") val expiresAt: String? = null,
+    @SerialName("expires_in") val expiresIn: Long = 0,
+    @SerialName("instruction") val instruction: String? = null,
+    @SerialName("qrcode_url") val qrcodeUrl: String? = null,
+    @SerialName("success") val success: Boolean = false,
+    @SerialName("message") val message: String? = null
+)
+
+@Serializable
 data class OrdersResponse(
     @SerialName("orders") val orders: List<Order> = emptyList(),
     @SerialName("success") val success: Boolean = false
