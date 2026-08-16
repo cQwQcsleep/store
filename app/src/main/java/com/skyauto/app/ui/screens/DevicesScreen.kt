@@ -56,14 +56,14 @@ fun DevicesScreen(viewModel: DevicesViewModel = hiltViewModel()) {
             value = name,
             onValueChange = { name = it },
             label = { Text("设备名称（选填）") },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = model,
             onValueChange = { model = it },
             label = { Text("设备型号") },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth(),
             supportingText = {
                 if (models.isNotEmpty()) Text("可选：" + models.joinToString(" / ") { it.name ?: it.model ?: it.brand ?: "" })

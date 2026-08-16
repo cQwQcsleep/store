@@ -126,7 +126,7 @@ fun AuthScreen(
                             onValueChange = { code = it },
                             modifier = Modifier.weight(1f),
                             label = { Text("验证码") },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(18.dp),
                             singleLine = true
                         )
                         Spacer(Modifier.size(8.dp))

@@ -40,7 +40,7 @@ fun NotificationsScreen(viewModel: NotificationsViewModel = hiltViewModel()) {
 
         Button(
             onClick = { viewModel.readAll() },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GrassGreen),
             modifier = Modifier.fillMaxWidth()
         ) {

@@ -152,7 +152,7 @@ fun AccountsScreen(
                     onValueChange = { accountInput = it },
                     label = { Text("账号 / 手机号") },
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(6.dp))
@@ -163,7 +163,7 @@ fun AccountsScreen(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(6.dp))
@@ -172,7 +172,7 @@ fun AccountsScreen(
                     onValueChange = { loginType = it },
                     label = { Text("登录方式（可选，如 account/phone）") },
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(10.dp))
@@ -223,7 +223,7 @@ fun AccountsScreen(
                                 onValueChange = { smsCode = it },
                                 label = { Text("验证码") },
                                 singleLine = true,
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(18.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
                             Spacer(Modifier.height(8.dp))

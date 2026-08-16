@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.skyauto.app.BuildConfig
 import com.skyauto.app.ui.components.GlassCard
 import com.skyauto.app.ui.components.GradientHero
 import com.skyauto.app.ui.theme.CoralRed
@@ -70,7 +71,7 @@ fun SettingsScreen(
         }
 
         Text(
-            "SkyAuto v1.0.0 · 澎湃 HyperOS 设计 · 数据来自 sky.angin.cn",
+            "SkyAuto v${BuildConfig.VERSION_NAME} · 澎湃 HyperOS 设计 · 数据来自 sky.angin.cn",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
