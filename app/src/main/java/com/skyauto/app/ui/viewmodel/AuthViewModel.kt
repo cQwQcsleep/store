@@ -31,8 +31,13 @@ class AuthViewModel @Inject constructor(
     val error = _error.error
 
     init {
-        // 尝试用持久化 Cookie 恢复会话
-        viewModelScope.launch { repo.me() }
+        // 本地已持久化登录态时，用 me() 校验 Cookie 是否仍有效；失效则清除过期会话。
+        // 校验失败（如网络异常）也回退到登录页，避免展示过期数据。
+        if (session.hasSession) {
+            viewModelScope.launch {
+                if (repo.me().isFailure) session.onLogout()
+            }
+        }
     }
 
     fun login(email: String, password: String, onDone: (Boolean) -> Unit = {}) {

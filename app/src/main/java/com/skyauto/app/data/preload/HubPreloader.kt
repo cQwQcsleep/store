@@ -45,36 +45,38 @@ class HubPreloader @Inject constructor(
 
     /** 单次目的地的预加载任务（每条路由一个协程，跑在 IO 线程池，天然多线程并发）。 */
     private suspend fun loadRoute(route: String) {
-        when (route) {
-            Routes.DASHBOARD -> {
-                cache.put(route, repo.dashboardStats().getOrNull())
-                cache.put("online", repo.onlineCount().getOrNull())
-            }
-            Routes.HEIGHT -> cache.put(route, repo.myHeight().getOrNull())
-            Routes.RANKING -> cache.put(route, repo.heightRanking().getOrNull())
-            Routes.WORLD_QUESTS -> cache.put(route, repo.worldQuests().getOrNull())
-            Routes.GAME_INSIGHTS -> cache.put(route, repo.gameInsightsPublic().getOrNull())
-            Routes.ECONOMY -> {
-                repo.accounts().onSuccess { accounts ->
-                    cache.put(Routes.ACCOUNTS, accounts)
-                    accounts.firstOrNull()?.id?.let { id ->
-                        cache.put("currency_$id", repo.accountCurrency(id).getOrNull())
+        // 预加载绝不能因网络异常崩溃：仓库部分方法在非 2xx/网络错误时可能直接抛出，
+        // 这里统一用 safe 兜底，任何异常只跳过该路由的预加载。
+        runCatching {
+            when (route) {
+                Routes.DASHBOARD -> {
+                    cache.put(route, repo.dashboardStats().getOrNull())
+                    cache.put("online", repo.onlineCount().getOrNull())
+                }
+                Routes.HEIGHT -> cache.put(route, repo.myHeight().getOrNull())
+                Routes.RANKING -> cache.put(route, repo.heightRanking().getOrNull())
+                Routes.WORLD_QUESTS -> cache.put(route, repo.worldQuests().getOrNull())
+                Routes.GAME_INSIGHTS -> cache.put(route, repo.gameInsightsPublic().getOrNull())
+                Routes.ECONOMY -> {
+                    repo.accounts().getOrNull()?.let { accounts ->
+                        cache.put(Routes.ACCOUNTS, accounts)
+                        accounts.firstOrNull()?.id?.let { id ->
+                            cache.put("currency_$id", repo.accountCurrency(id).getOrNull())
+                        }
                     }
                 }
+                Routes.ACCOUNTS -> cache.put(route, repo.accounts().getOrNull())
+                Routes.DEVICES -> cache.put(route, repo.devices().getOrNull())
+                Routes.CONFIG_RULES -> cache.put(route, repo.accountConfigRules().getOrNull())
+                Routes.FRIENDS -> cache.put(route, repo.friends().getOrNull())
+                Routes.SPIRITS -> cache.put(route, repo.heartTrade().getOrNull())
+                Routes.CHAT -> cache.put(route, repo.chatRooms().getOrNull())
+                Routes.TASKS -> cache.put(route, repo.schedules().getOrNull())
+                Routes.ANNOUNCEMENTS -> cache.put(route, repo.systemAnnouncements().getOrNull())
+                Routes.INVITATIONS -> cache.put(route, repo.myInvitations().getOrNull())
+                Routes.OPERATIONS -> cache.put(route, repo.operationsStats().getOrNull())
+                Routes.NOTIFICATIONS -> cache.put(route, repo.notifications().getOrNull())
             }
-            Routes.ACCOUNTS -> cache.put(route, repo.accounts().getOrNull())
-            Routes.DEVICES -> {
-                cache.put(route, repo.devices().getOrNull())
-            }
-            Routes.CONFIG_RULES -> cache.put(route, repo.accountConfigRules().getOrNull())
-            Routes.FRIENDS -> cache.put(route, repo.friends().getOrNull())
-            Routes.SPIRITS -> cache.put(route, repo.heartTrade().getOrNull())
-            Routes.CHAT -> cache.put(route, repo.chatRooms().getOrNull())
-            Routes.TASKS -> cache.put(route, repo.schedules().getOrNull())
-            Routes.ANNOUNCEMENTS -> cache.put(route, repo.systemAnnouncements().getOrNull())
-            Routes.INVITATIONS -> cache.put(route, repo.myInvitations().getOrNull())
-            Routes.OPERATIONS -> cache.put(route, repo.operationsStats().getOrNull())
-            Routes.NOTIFICATIONS -> cache.put(route, repo.notifications().getOrNull())
         }
     }
 
