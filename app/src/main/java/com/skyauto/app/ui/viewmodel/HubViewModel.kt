@@ -22,4 +22,9 @@ class HubViewModel @Inject constructor(
     fun onFirstShown() {
         preloader.preloadNearby(0)
     }
+
+    /** 2D 网格桌面：预加载指定路由列表（5×5 范围内去重后的功能）。 */
+    fun preloadLeaves(routes: List<String>) {
+        preloader.preloadRoutes(routes)
+    }
 }

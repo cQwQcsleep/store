@@ -8,6 +8,7 @@ import com.skyauto.app.data.model.AnnouncementFull
 import com.skyauto.app.data.model.ChatMessage
 import com.skyauto.app.data.model.ChatRoom
 import com.skyauto.app.data.model.DoneTodayResponse
+import com.skyauto.app.data.model.FeedbackTicket
 import com.skyauto.app.data.model.ForgeOption
 import com.skyauto.app.data.model.FriendAbilityNode
 import com.skyauto.app.data.model.FriendCodeInvite
@@ -17,8 +18,10 @@ import com.skyauto.app.data.model.GameInsightsResponse
 import com.skyauto.app.data.model.HeartFriendsResponse
 import com.skyauto.app.data.model.InvitationsResponse
 import com.skyauto.app.data.model.OperationsResponse
+import com.skyauto.app.data.model.Order
 import com.skyauto.app.data.model.SpiritIntimacyItem
 import com.skyauto.app.data.model.TaskRecord
+import com.skyauto.app.data.model.WechatStatusResponse
 import com.skyauto.app.data.model.WorldQuest
 import com.skyauto.app.data.preload.HubPreloadCache
 import com.skyauto.app.data.repository.SkyRepository
@@ -448,6 +451,136 @@ class AccountAddViewModel @Inject constructor(private val repo: SkyRepository) :
         viewModelScope.launch {
             repo.accountAddCancel(tid)
                 .onSuccess { message.value = "已取消"; adding.value = false; taskId.value = null }
+                .onFailure { message.value = it.message }
+        }
+    }
+}
+
+@HiltViewModel
+class OrdersViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
+    val orders = MutableStateFlow<List<Order>>(emptyList())
+    val loading = MutableStateFlow(false)
+    val message = MutableStateFlow<String?>(null)
+
+    init { load() }
+    fun load() {
+        cache.get<List<Order>>(Routes.ORDERS)?.let { orders.value = it }
+        loading.value = true
+        viewModelScope.launch {
+            repo.orders()
+                .onSuccess { orders.value = it; cache.put(Routes.ORDERS, it) }
+                .onFailure { message.value = it.message }
+            loading.value = false
+        }
+    }
+}
+
+@HiltViewModel
+class FeedbackViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
+    val tickets = MutableStateFlow<List<FeedbackTicket>>(emptyList())
+    val loading = MutableStateFlow(false)
+    val message = MutableStateFlow<String?>(null)
+
+    init { load() }
+    fun load() {
+        cache.get<List<FeedbackTicket>>(Routes.FEEDBACK)?.let { tickets.value = it }
+        loading.value = true
+        viewModelScope.launch {
+            repo.feedbackTickets()
+                .onSuccess { tickets.value = it; cache.put(Routes.FEEDBACK, it) }
+                .onFailure { message.value = it.message }
+            loading.value = false
+        }
+    }
+}
+
+@HiltViewModel
+class WechatBindingViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
+    val status = MutableStateFlow<WechatStatusResponse?>(null)
+    val loading = MutableStateFlow(false)
+    val message = MutableStateFlow<String?>(null)
+
+    init { load() }
+    fun load() {
+        cache.get<WechatStatusResponse>(Routes.WECHAT)?.let { status.value = it }
+        loading.value = true
+        viewModelScope.launch {
+            repo.wechatStatus()
+                .onSuccess { status.value = it; cache.put(Routes.WECHAT, it) }
+                .onFailure { message.value = it.message }
+            loading.value = false
+        }
+    }
+}
+
+@HiltViewModel
+class DoneTodayViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+    val accounts = MutableStateFlow<List<Account>>(emptyList())
+    val selectedAccountId = MutableStateFlow<Long?>(null)
+    val done = MutableStateFlow<DoneTodayResponse?>(null)
+    val loading = MutableStateFlow(false)
+    val message = MutableStateFlow<String?>(null)
+
+    init { loadAll() }
+    fun loadAll() {
+        loading.value = true
+        viewModelScope.launch {
+            repo.accounts()
+                .onSuccess { accountsList ->
+                    accounts.value = accountsList
+                    val target = selectedAccountId.value ?: accountsList.firstOrNull()?.id
+                    if (target != null) loadAccount(target)
+                }
+                .onFailure { message.value = it.message }
+            loading.value = false
+        }
+    }
+    fun loadAccount(id: Long) {
+        selectedAccountId.value = id
+        viewModelScope.launch {
+            repo.doneToday(id)
+                .onSuccess { done.value = it }
+                .onFailure { message.value = it.message }
+        }
+    }
+}
+
+@HiltViewModel
+class FriendCodeViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+    val accounts = MutableStateFlow<List<Account>>(emptyList())
+    val selectedAccountId = MutableStateFlow<Long?>(null)
+    val invites = MutableStateFlow<List<FriendCodeInvite>>(emptyList())
+    val loading = MutableStateFlow(false)
+    val message = MutableStateFlow<String?>(null)
+
+    init { loadAll() }
+    fun loadAll() {
+        loading.value = true
+        viewModelScope.launch {
+            repo.accounts()
+                .onSuccess { accountsList ->
+                    accounts.value = accountsList
+                    val target = selectedAccountId.value ?: accountsList.firstOrNull()?.id
+                    if (target != null) loadAccount(target)
+                }
+                .onFailure { message.value = it.message }
+            loading.value = false
+        }
+    }
+    fun loadAccount(id: Long) {
+        selectedAccountId.value = id
+        viewModelScope.launch {
+            repo.friendCodeList(id)
+                .onSuccess { invites.value = it }
                 .onFailure { message.value = it.message }
         }
     }

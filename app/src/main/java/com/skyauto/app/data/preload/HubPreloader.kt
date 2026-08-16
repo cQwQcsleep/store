@@ -43,6 +43,18 @@ class HubPreloader @Inject constructor(
         }
     }
 
+    /**
+     * 2D 网格桌面专用：以中心格为锚点，把 5×5 范围内所有功能路由并发预加载。
+     * 幂等：已预加载过的路由不会重复请求。
+     */
+    fun preloadRoutes(routes: List<String>) {
+        routes.forEach { route ->
+            if (route.isNotEmpty() && cache.markLoaded(route)) {
+                scope.launch { loadRoute(route) }
+            }
+        }
+    }
+
     /** 单次目的地的预加载任务（每条路由一个协程，跑在 IO 线程池，天然多线程并发）。 */
     private suspend fun loadRoute(route: String) {
         // 预加载绝不能因网络异常崩溃：仓库部分方法在非 2xx/网络错误时可能直接抛出，

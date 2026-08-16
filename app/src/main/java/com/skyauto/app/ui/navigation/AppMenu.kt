@@ -19,10 +19,15 @@ import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.PrecisionManufacturing
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Rule
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallet
+import androidx.compose.material.icons.outlined.QrCode
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /** 路由常量 */
@@ -53,6 +58,11 @@ object Routes {
     const val GAME_INSIGHTS = "game_insights"
     const val FORGE = "forge"
     const val CONFIG_RULES = "config_rules"
+    const val ORDERS = "orders"
+    const val FEEDBACK = "feedback"
+    const val WECHAT = "wechat"
+    const val DONE_TODAY = "done_today"
+    const val FRIEND_CODES = "friend_codes"
 }
 
 /** 二级菜单项 */
@@ -98,7 +108,8 @@ object AppMenu {
             icon = Icons.Outlined.Wallet,
             children = listOf(
                 MenuLeaf(Routes.ECONOMY, "货币钱包", Icons.Outlined.Wallet),
-                MenuLeaf(Routes.FORGE, "货币合成", Icons.Outlined.PrecisionManufacturing)
+                MenuLeaf(Routes.FORGE, "货币合成", Icons.Outlined.PrecisionManufacturing),
+                MenuLeaf(Routes.ORDERS, "订单管理", Icons.Outlined.ReceiptLong)
             )
         ),
         MenuGroup(
@@ -118,6 +129,7 @@ object AppMenu {
             children = listOf(
                 MenuLeaf(Routes.FRIENDS, "好友", Icons.Outlined.People),
                 MenuLeaf(Routes.FRIEND_DETAIL, "好友深度", Icons.Outlined.Diversity2),
+                MenuLeaf(Routes.FRIEND_CODES, "好友码", Icons.Outlined.QrCode),
                 MenuLeaf(Routes.SPIRITS, "灵犀 · 心火", Icons.Outlined.Favorite),
                 MenuLeaf(Routes.CHAT, "聊天室", Icons.Outlined.Chat)
             )
@@ -128,7 +140,8 @@ object AppMenu {
             icon = Icons.Outlined.TaskAlt,
             children = listOf(
                 MenuLeaf(Routes.TASKS, "任务计划", Icons.Outlined.TaskAlt),
-                MenuLeaf(Routes.TASK_HISTORY, "任务执行详情", Icons.Outlined.History)
+                MenuLeaf(Routes.TASK_HISTORY, "任务执行详情", Icons.Outlined.History),
+                MenuLeaf(Routes.DONE_TODAY, "今日已完成", Icons.Outlined.CheckCircle)
             )
         ),
         MenuGroup(
@@ -155,6 +168,8 @@ object AppMenu {
             icon = Icons.Outlined.Pets,
             children = listOf(
                 MenuLeaf(Routes.NOTIFICATIONS, "通知中心", Icons.Outlined.Notifications),
+                MenuLeaf(Routes.FEEDBACK, "反馈工单", Icons.Outlined.SupportAgent),
+                MenuLeaf(Routes.WECHAT, "微信绑定", Icons.Outlined.ChatBubble),
                 MenuLeaf(Routes.SETTINGS, "设置", Icons.Outlined.Settings)
             )
         )
@@ -167,6 +182,9 @@ object AppMenu {
         }
         return "光遇助手"
     }
+
+    /** 展平所有一级功能为顺序列表（2D 网格按此顺序平铺）。 */
+    fun leaves(): List<MenuLeaf> = groups().flatMap { it.children }
 
     fun iconFor(route: String): ImageVector {
         groups().forEach { g ->

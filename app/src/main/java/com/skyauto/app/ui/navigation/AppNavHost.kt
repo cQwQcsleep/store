@@ -28,8 +28,8 @@ import com.skyauto.app.ui.screens.ForgeScreen
 import com.skyauto.app.ui.screens.FriendDetailScreen
 import com.skyauto.app.ui.screens.FriendsScreen
 import com.skyauto.app.ui.screens.GameInsightsScreen
+import com.skyauto.app.ui.screens.GridHubScreen
 import com.skyauto.app.ui.screens.HeightScreen
-import com.skyauto.app.ui.screens.HubScreen
 import com.skyauto.app.ui.screens.InvitationsScreen
 import com.skyauto.app.ui.screens.NotificationsScreen
 import com.skyauto.app.ui.screens.OperationsScreen
@@ -75,13 +75,7 @@ fun AppNavHost(
             }
         ) {
             composable(Routes.HUB) {
-                HubScreen(
-                    onNavigate = { route ->
-                        navController.navigate(route) {
-                            launchSingleTop = true
-                        }
-                    }
-                )
+                GridHubScreen(onRequestAuth = onRequestAuth)
             }
             composable(Routes.DASHBOARD) {
                 Detail(route = currentRoute, navController = navController) { DashboardScreen() }
