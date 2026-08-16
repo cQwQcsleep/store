@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.miide.ui.ai.AiSettingsScreen
 import com.miide.ui.ai.ProviderEditScreen
+import com.miide.ui.chat.ChatScreen
 import com.miide.ui.editor.EditorScreen
 import com.miide.ui.home.HomeScreen
 
@@ -18,6 +19,7 @@ object Routes {
     const val AI_SETTINGS = "ai_settings"
     const val PROVIDER_EDIT = "provider_edit"
     const val EDITOR = "editor"
+    const val CHAT = "chat"
 }
 
 @Composable
@@ -31,7 +33,14 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
                 onOpenFile = { uri, name ->
                     navController.navigate("${Routes.EDITOR}?uri=${android.net.Uri.encode(uri)}&name=${android.net.Uri.encode(name)}")
                 },
-                onOpenAiSettings = { navController.navigate(Routes.AI_SETTINGS) }
+                onOpenAiSettings = { navController.navigate(Routes.AI_SETTINGS) },
+                onOpenChat = { navController.navigate(Routes.CHAT) }
+            )
+        }
+
+        composable(Routes.CHAT) {
+            ChatScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

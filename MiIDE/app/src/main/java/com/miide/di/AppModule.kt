@@ -8,6 +8,7 @@ import com.miide.core.data.local.dao.MessageDao
 import com.miide.core.data.local.dao.ProjectDao
 import com.miide.core.data.local.dao.ProviderDao
 import com.miide.core.data.local.dao.UsageDao
+import com.miide.core.data.repository.ConversationRepository
 import com.miide.core.data.repository.ProviderRepository
 import com.miide.core.data.repository.UsageRepository
 import com.miide.core.data.security.SecureKeyStore
@@ -71,6 +72,13 @@ object AppModule {
         keyStore: SecureKeyStore,
         json: Json
     ): ProviderRepository = ProviderRepository(dao, keyStore, json)
+
+    @Provides
+    @Singleton
+    fun provideConversationRepository(
+        conversationDao: ConversationDao,
+        messageDao: MessageDao
+    ): ConversationRepository = ConversationRepository(conversationDao, messageDao)
 
     @Provides
     @Singleton
