@@ -53,7 +53,7 @@ import com.skyauto.app.ui.theme.FrostWhite
  * 普通横向平铺桌面。
  *
  * - 所有功能单行横向平铺，可左右滑动，非卡片样式（图标 + 文字）；
- * - 点击任意项以 90% 覆盖层展开对应功能，返回键或右上角关闭按钮退出，
+ * - 点击任意项以 100% 覆盖层展开对应功能，返回键或右上角关闭按钮退出，
  *   切换其他项时自动关闭。
  */
 @Composable
@@ -86,7 +86,7 @@ fun GridHubScreen(
         }
     }
 
-    // ---- 功能展开层（90% 覆盖，返回键/关闭按钮退出） ----
+    // ---- 功能展开层（100% 覆盖，返回键/关闭按钮退出） ----
     BackHandler(enabled = expandedRoute != null) { expandedRoute = null }
 
     AnimatedVisibility(
