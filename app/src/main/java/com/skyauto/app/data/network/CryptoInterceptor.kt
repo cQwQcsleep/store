@@ -48,6 +48,11 @@ class CryptoInterceptor(
 
         if (shouldReset) keys.reset()
 
+        // 维护识别：接口返回维护特征时置全局维护状态
+        if (response.code == 405 || response.code == 503 || response.code == 504) {
+            MaintenanceMonitor.markMaintenance()
+        }
+
         if (key != null && response.header("X-Encrypted") == "1") {
             val bodyText = response.body?.string() ?: return response
             val decrypted = runCatching { Crypto.decryptFromBase64(key, bodyText) }
@@ -56,6 +61,11 @@ class CryptoInterceptor(
                 val newBody = decrypted.toResponseBody(JSON_MEDIA)
                 return response.newBuilder().body(newBody).build()
             }
+            // 加密响应但解密失败，且响应体疑似维护页 -> 标记维护
+            if (MaintenanceMonitor.isMaintenanceResponse(response.code, response.header("Content-Type"), bodyText)) {
+                MaintenanceMonitor.markMaintenance()
+            }
+            return response
         }
         return response
     }

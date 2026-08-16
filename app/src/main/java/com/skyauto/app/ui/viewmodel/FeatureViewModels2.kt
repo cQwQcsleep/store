@@ -20,7 +20,9 @@ import com.skyauto.app.data.model.OperationsResponse
 import com.skyauto.app.data.model.SpiritIntimacyItem
 import com.skyauto.app.data.model.TaskRecord
 import com.skyauto.app.data.model.WorldQuest
+import com.skyauto.app.data.preload.HubPreloadCache
 import com.skyauto.app.data.repository.SkyRepository
+import com.skyauto.app.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,17 +31,24 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class AnnouncementsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class AnnouncementsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val announcements = MutableStateFlow<List<AnnouncementFull>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<List<AnnouncementFull>>(Routes.ANNOUNCEMENTS)?.let { announcements.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.systemAnnouncements()
-                .onSuccess { announcements.value = it }
+                .onSuccess {
+                    announcements.value = it
+                    cache.put(Routes.ANNOUNCEMENTS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -47,17 +56,24 @@ class AnnouncementsViewModel @Inject constructor(private val repo: SkyRepository
 }
 
 @HiltViewModel
-class InvitationsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class InvitationsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val data = MutableStateFlow<InvitationsResponse?>(null)
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<InvitationsResponse>(Routes.INVITATIONS)?.let { data.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.myInvitations()
-                .onSuccess { data.value = it }
+                .onSuccess {
+                    data.value = it
+                    cache.put(Routes.INVITATIONS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -65,17 +81,24 @@ class InvitationsViewModel @Inject constructor(private val repo: SkyRepository) 
 }
 
 @HiltViewModel
-class WorldQuestsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class WorldQuestsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val quests = MutableStateFlow<List<WorldQuest>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<List<WorldQuest>>(Routes.WORLD_QUESTS)?.let { quests.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.worldQuests()
-                .onSuccess { quests.value = it }
+                .onSuccess {
+                    quests.value = it
+                    cache.put(Routes.WORLD_QUESTS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -83,17 +106,24 @@ class WorldQuestsViewModel @Inject constructor(private val repo: SkyRepository) 
 }
 
 @HiltViewModel
-class OperationsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class OperationsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val stats = MutableStateFlow<OperationsResponse?>(null)
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<OperationsResponse>(Routes.OPERATIONS)?.let { stats.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.operationsStats()
-                .onSuccess { stats.value = it }
+                .onSuccess {
+                    stats.value = it
+                    cache.put(Routes.OPERATIONS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -101,7 +131,10 @@ class OperationsViewModel @Inject constructor(private val repo: SkyRepository) :
 }
 
 @HiltViewModel
-class GameInsightsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class GameInsightsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val accounts = MutableStateFlow<List<Account>>(emptyList())
     val selectedAccountId = MutableStateFlow<Long?>(null)
     val publicInsights = MutableStateFlow<GameInsightsPublicResponse?>(null)
@@ -113,6 +146,7 @@ class GameInsightsViewModel @Inject constructor(private val repo: SkyRepository)
     init { loadAll() }
 
     fun loadAll() {
+        cache.get<GameInsightsPublicResponse>(Routes.GAME_INSIGHTS)?.let { publicInsights.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.gameInsightsPublic()
@@ -193,17 +227,24 @@ class ForgeViewModel @Inject constructor(private val repo: SkyRepository) : View
 }
 
 @HiltViewModel
-class ConfigRulesViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class ConfigRulesViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val data = MutableStateFlow<AccountConfigRulesResponse?>(null)
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<AccountConfigRulesResponse>(Routes.CONFIG_RULES)?.let { data.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.accountConfigRules()
-                .onSuccess { data.value = it }
+                .onSuccess {
+                    data.value = it
+                    cache.put(Routes.CONFIG_RULES, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }

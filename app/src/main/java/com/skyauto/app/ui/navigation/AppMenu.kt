@@ -30,6 +30,7 @@ object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val RESET = "reset"
+    const val HUB = "hub"
     const val DASHBOARD = "dashboard"
     const val HEIGHT = "height"
     const val RANKING = "ranking"

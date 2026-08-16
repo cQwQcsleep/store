@@ -36,9 +36,21 @@ class ApiKeys(
                 .get()
                 .build()
             okHttp.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) return null
+                if (!resp.isSuccessful) {
+                    if (MaintenanceMonitor.isMaintenanceResponse(resp.code, resp.header("Content-Type"), null)) {
+                        MaintenanceMonitor.markMaintenance()
+                    }
+                    return null
+                }
                 val text = resp.body?.string() ?: return null
-                val json = org.json.JSONObject(text)
+                val json = runCatching { org.json.JSONObject(text) }.getOrNull()
+                if (json == null) {
+                    // key 接口返回非 JSON（维护页 HTML）
+                    if (MaintenanceMonitor.isMaintenanceResponse(resp.code, resp.header("Content-Type"), text)) {
+                        MaintenanceMonitor.markMaintenance()
+                    }
+                    return null
+                }
                 if (!json.optBoolean("success", false)) return null
                 val keyB64 = json.optString("key") ?: return null
                 Base64.getDecoder().decode(keyB64)

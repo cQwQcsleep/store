@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -34,11 +35,12 @@ import androidx.compose.ui.unit.sp
 // HyperOS 3.0 组件：毛玻璃卡片、柔和高光、大圆角
 // ---------------------------------------------------------------
 
-/** 顶部应用栏（带全局菜单按钮 + 标题 + 右侧操作） */
+/** 顶部应用栏（返回/菜单按钮 + 标题 + 右侧操作） */
 @Composable
 fun HyperTopBar(
     title: String,
     onMenuClick: () -> Unit,
+    onBack: (() -> Unit)? = null,
     actions: @Composable () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -49,15 +51,15 @@ fun HyperTopBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            onClick = onMenuClick,
+            onClick = if (onBack != null) onBack else onMenuClick,
             shape = CircleShape,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.size(44.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    Icons.Rounded.Menu,
-                    contentDescription = "菜单",
+                    if (onBack != null) Icons.Rounded.ArrowBack else Icons.Rounded.Menu,
+                    contentDescription = if (onBack != null) "返回" else "菜单",
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }

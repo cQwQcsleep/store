@@ -12,7 +12,9 @@ import com.skyauto.app.data.model.HeightInfo
 import com.skyauto.app.data.model.HeightRankingEntry
 import com.skyauto.app.data.model.NotificationItem
 import com.skyauto.app.data.model.Schedule
+import com.skyauto.app.data.preload.HubPreloadCache
 import com.skyauto.app.data.repository.SkyRepository
+import com.skyauto.app.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +23,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class DashboardViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class DashboardViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     private val _stats = MutableStateFlow<DashboardStats?>(null)
     val stats: StateFlow<DashboardStats?> = _stats.asStateFlow()
     private val _online = MutableStateFlow<Long?>(null)
@@ -31,27 +36,47 @@ class DashboardViewModel @Inject constructor(private val repo: SkyRepository) : 
 
     init { load() }
     fun load() {
+        // 优先使用十字UI预加载的缓存数据，秒出后再静默刷新
+        cache.get<DashboardStats>(Routes.DASHBOARD)?.let { _stats.value = it }
+        cache.get<Long>("online")?.let { _online.value = it }
         _loading.value = true
         viewModelScope.launch {
-            repo.dashboardStats().onSuccess { _stats.value = it }
-            repo.onlineCount().onSuccess { _online.value = it }
+            repo.dashboardStats().onSuccess {
+                _stats.value = it
+                cache.put(Routes.DASHBOARD, it)
+            }
+            repo.onlineCount().onSuccess {
+                _online.value = it
+                cache.put("online", it)
+            }
             _loading.value = false
         }
     }
 }
 
 @HiltViewModel
-class HeightViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class HeightViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val myHeight = MutableStateFlow<HeightInfo?>(null)
     val ranking = MutableStateFlow<List<HeightRankingEntry>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     fun load() {
+        cache.get<HeightInfo>(Routes.HEIGHT)?.let { myHeight.value = it }
+        cache.get<List<HeightRankingEntry>>(Routes.RANKING)?.let { ranking.value = it }
         loading.value = true
         viewModelScope.launch {
-            repo.myHeight().onSuccess { myHeight.value = it }
-            repo.heightRanking().onSuccess { ranking.value = it }
+            repo.myHeight().onSuccess {
+                myHeight.value = it
+                cache.put(Routes.HEIGHT, it)
+            }
+            repo.heightRanking().onSuccess {
+                ranking.value = it
+                cache.put(Routes.RANKING, it)
+            }
             loading.value = false
         }
     }
@@ -65,7 +90,10 @@ class HeightViewModel @Inject constructor(private val repo: SkyRepository) : Vie
 }
 
 @HiltViewModel
-class EconomyViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class EconomyViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val currency = MutableStateFlow<CurrencyInfo?>(null)
     val accountName = MutableStateFlow<String?>(null)
     val hasAccount = MutableStateFlow(false)
@@ -74,6 +102,15 @@ class EconomyViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 
     init { load() }
     fun load() {
+        // 预加载缓存：账号列表与首个账号的货币
+        cache.get<List<Account>>(Routes.ACCOUNTS)?.let { accounts ->
+            val first = accounts.firstOrNull()
+            hasAccount.value = first != null
+            if (first != null) {
+                accountName.value = first.displayUsername ?: first.account ?: "账号 #${first.id}"
+                cache.get<CurrencyInfo>("currency_${first.id}")?.let { currency.value = it }
+            }
+        }
         loading.value = true
         viewModelScope.launch {
             repo.accounts()
@@ -97,17 +134,24 @@ class EconomyViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 }
 
 @HiltViewModel
-class AccountsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class AccountsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val accounts = MutableStateFlow<List<Account>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<List<Account>>(Routes.ACCOUNTS)?.let { accounts.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.accounts()
-                .onSuccess { accounts.value = it }
+                .onSuccess {
+                    accounts.value = it
+                    cache.put(Routes.ACCOUNTS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -115,7 +159,10 @@ class AccountsViewModel @Inject constructor(private val repo: SkyRepository) : V
 }
 
 @HiltViewModel
-class DevicesViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class DevicesViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val devices = MutableStateFlow<List<Device>>(emptyList())
     val models = MutableStateFlow<List<DeviceModel>>(emptyList())
     val loading = MutableStateFlow(false)
@@ -123,9 +170,13 @@ class DevicesViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 
     init { load() }
     fun load() {
+        cache.get<List<Device>>(Routes.DEVICES)?.let { devices.value = it }
         loading.value = true
         viewModelScope.launch {
-            repo.devices().onSuccess { devices.value = it }
+            repo.devices().onSuccess {
+                devices.value = it
+                cache.put(Routes.DEVICES, it)
+            }
             repo.deviceModels().onSuccess { models.value = it }
             loading.value = false
         }
@@ -140,17 +191,24 @@ class DevicesViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 }
 
 @HiltViewModel
-class FriendsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class FriendsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val friends = MutableStateFlow<List<Friend>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<List<Friend>>(Routes.FRIENDS)?.let { friends.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.friends()
-                .onSuccess { friends.value = it }
+                .onSuccess {
+                    friends.value = it
+                    cache.put(Routes.FRIENDS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -158,17 +216,24 @@ class FriendsViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 }
 
 @HiltViewModel
-class SpiritsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class SpiritsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val heartTrade = MutableStateFlow<com.skyauto.app.data.model.HeartTradeResponse?>(null)
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<com.skyauto.app.data.model.HeartTradeResponse>(Routes.SPIRITS)?.let { heartTrade.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.heartTrade()
-                .onSuccess { heartTrade.value = it }
+                .onSuccess {
+                    heartTrade.value = it
+                    cache.put(Routes.SPIRITS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -176,17 +241,24 @@ class SpiritsViewModel @Inject constructor(private val repo: SkyRepository) : Vi
 }
 
 @HiltViewModel
-class TasksViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class TasksViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val schedules = MutableStateFlow<List<Schedule>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<List<Schedule>>(Routes.TASKS)?.let { schedules.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.schedules()
-                .onSuccess { schedules.value = it }
+                .onSuccess {
+                    schedules.value = it
+                    cache.put(Routes.TASKS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -201,17 +273,24 @@ class TasksViewModel @Inject constructor(private val repo: SkyRepository) : View
 }
 
 @HiltViewModel
-class NotificationsViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class NotificationsViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val items = MutableStateFlow<List<NotificationItem>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<List<NotificationItem>>(Routes.NOTIFICATIONS)?.let { items.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.notifications()
-                .onSuccess { items.value = it }
+                .onSuccess {
+                    items.value = it
+                    cache.put(Routes.NOTIFICATIONS, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }
@@ -224,17 +303,24 @@ class NotificationsViewModel @Inject constructor(private val repo: SkyRepository
 }
 
 @HiltViewModel
-class ChatViewModel @Inject constructor(private val repo: SkyRepository) : ViewModel() {
+class ChatViewModel @Inject constructor(
+    private val repo: SkyRepository,
+    private val cache: HubPreloadCache
+) : ViewModel() {
     val rooms = MutableStateFlow<List<com.skyauto.app.data.model.ChatRoom>>(emptyList())
     val loading = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
 
     init { load() }
     fun load() {
+        cache.get<List<com.skyauto.app.data.model.ChatRoom>>(Routes.CHAT)?.let { rooms.value = it }
         loading.value = true
         viewModelScope.launch {
             repo.chatRooms()
-                .onSuccess { rooms.value = it }
+                .onSuccess {
+                    rooms.value = it
+                    cache.put(Routes.CHAT, it)
+                }
                 .onFailure { message.value = it.message }
             loading.value = false
         }

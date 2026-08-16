@@ -77,13 +77,13 @@ private val DarkColors = darkColorScheme(
     onErrorContainer = Color(0xFFFFDADB)
 )
 
-// HyperOS 大圆角体系
+// HyperOS 大圆角体系（iPhone 大 R 角风格）
 private val HyperShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    extraSmall = RoundedCornerShape(16.dp),
+    small = RoundedCornerShape(20.dp),
+    medium = RoundedCornerShape(24.dp),
+    large = RoundedCornerShape(30.dp),
+    extraLarge = RoundedCornerShape(40.dp)
 )
 
 @Composable
