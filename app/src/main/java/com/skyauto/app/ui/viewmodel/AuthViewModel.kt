@@ -3,6 +3,7 @@ package com.skyauto.app.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.skyauto.app.data.model.User
+import com.skyauto.app.data.repository.SkyApiError
 import com.skyauto.app.data.repository.SkyRepository
 import com.skyauto.app.data.session.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,11 +32,15 @@ class AuthViewModel @Inject constructor(
     val error = _error.error
 
     init {
-        // 本地已持久化登录态时，用 me() 校验 Cookie 是否仍有效；失效则清除过期会话。
-        // 校验失败（如网络异常）也回退到登录页，避免展示过期数据。
+        // 本地已持久化登录态时，用 me() 校验 Cookie 是否仍有效。
+        // 仅当服务端明确返回"未登录"(401) 时才清除过期会话；
+        // 网络异常/超时/5xx 属于临时故障，保留本地会话，避免每次启动都被迫重新登录。
         if (session.hasSession) {
             viewModelScope.launch {
-                if (repo.me().isFailure) session.onLogout()
+                val r = repo.me()
+                if (r.isFailure && (r.exceptionOrNull() as? SkyApiError)?.unauthorized == true) {
+                    session.onLogout()
+                }
             }
         }
     }

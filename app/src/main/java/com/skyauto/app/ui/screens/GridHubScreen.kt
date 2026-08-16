@@ -26,7 +26,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -53,6 +56,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.skyauto.app.ui.navigation.AppMenu
 import com.skyauto.app.ui.navigation.MenuLeaf
 import com.skyauto.app.ui.navigation.Routes
+import com.skyauto.app.ui.theme.FrostWhite
 import com.skyauto.app.ui.theme.HyperBlue
 import com.skyauto.app.ui.viewmodel.HubViewModel
 import kotlinx.coroutines.launch
@@ -88,6 +92,8 @@ fun GridHubScreen(
 
         // 自适应网格：正方形格子，3×3 尽量贴合屏幕。
         val cellSize = minOf(viewW, viewH) / 3f
+        // 整数格边长：offset 与 size 统一用整数，避免四舍五入/截断不一致导致卡片重叠
+        val cell = cellSize.roundToInt()
         val colCount = 3
         val rowCount = ceil(leaves.size.toFloat() / colCount).toInt().coerceAtLeast(1)
         val gridW = colCount * cellSize
@@ -152,8 +158,15 @@ fun GridHubScreen(
             viewModel.preloadLeaves(routes)
         }
 
-        Box(Modifier.fillMaxSize()) {
-            // ---- 无限网格内容（仅渲染 3×3 可视窗口） ----
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(FrostWhite, Color(0xFFEDF1F8))
+                    )
+                )
+        ) {
             Box(
                 Modifier
                     .size(gridW.toInt().dp, gridH.toInt().dp)
@@ -218,8 +231,8 @@ fun GridHubScreen(
                             leaf = leaf,
                             paletteIndex = idx,
                             modifier = Modifier
-                                .offset { IntOffset((c * cellSize).roundToInt(), (r * cellSize).roundToInt()) }
-                                .size(cellSize.toInt().dp),
+                                .offset { IntOffset(c * cell, r * cell) }
+                                .size(cell.dp),
                             onClick = {
                                 scope.launch { offset.stop() }
                                 snapToCell(c, r)
@@ -267,17 +280,19 @@ fun GridHubScreen(
     }
 }
 
-/** 纯色扁平卡片配色（按索引循环取色，形成多彩格子）。 */
-private val CardPalette = listOf(
-    Color(0xFFE3F0FF), // 浅蓝
-    Color(0xFFE6F7EC), // 浅绿
-    Color(0xFFFFF3E0), // 浅橙
-    Color(0xFFF3E8FF), // 浅紫
-    Color(0xFFFFEBEE), // 浅红
-    Color(0xFFE0F7FA), // 浅青
-    Color(0xFFF1F8E9), // 浅黄绿
-    Color(0xFFFFF9C4), // 浅黄
-    Color(0xFFEDE7F6), // 浅深紫
+/** 卡片配色：浅背景 + 强调色 + 图标色（按索引循环，形成多彩格子）。 */
+private data class CardStyle(val bg: Color, val accent: Color, val icon: Color)
+
+private val CardStyles = listOf(
+    CardStyle(Color(0xFFE3F0FF), Color(0xFF6C8CFF), Color(0xFF4A63D6)), // 蓝
+    CardStyle(Color(0xFFE6F7EC), Color(0xFF7CCB9A), Color(0xFF3E9668)), // 绿
+    CardStyle(Color(0xFFFFF3E0), Color(0xFFFFC46B), Color(0xFFE09A2E)), // 橙
+    CardStyle(Color(0xFFF3E8FF), Color(0xFF9A8CFF), Color(0xFF6C5CE0)), // 紫
+    CardStyle(Color(0xFFFFEBEE), Color(0xFFFF7B7B), Color(0xFFE04F5F)), // 红
+    CardStyle(Color(0xFFE0F7FA), Color(0xFF7AD4E8), Color(0xFF2FA8C0)), // 青
+    CardStyle(Color(0xFFF1F8E9), Color(0xFF9CCC65), Color(0xFF6FA83B)), // 黄绿
+    CardStyle(Color(0xFFFFF9C4), Color(0xFFFFD54F), Color(0xFFE0A800)), // 黄
+    CardStyle(Color(0xFFEDE7F6), Color(0xFFB39DDB), Color(0xFF7E57C2)), // 深紫
 )
 
 /** 纯色扁平功能卡片。 */
@@ -288,12 +303,13 @@ private fun GridCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val bg = CardPalette[paletteIndex % CardPalette.size]
-    val fg = MaterialTheme.colorScheme.onSurface
+    val style = CardStyles[paletteIndex % CardStyles.size]
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(24.dp),
-        color = bg,
+        color = Color.White,
+        shadowElevation = 6.dp,
+        tonalElevation = 2.dp,
         modifier = modifier.padding(6.dp)
     ) {
         Column(
@@ -303,28 +319,28 @@ private fun GridCard(
         ) {
             Box(
                 Modifier
-                    .size(44.dp)
-                    .background(Color.White.copy(alpha = 0.55f), RoundedCornerShape(14.dp)),
+                    .size(52.dp)
+                    .background(style.accent.copy(alpha = 0.18f), RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(leaf.icon, contentDescription = null, tint = HyperBlue, modifier = Modifier.size(24.dp))
+                Icon(leaf.icon, contentDescription = null, tint = style.icon, modifier = Modifier.size(26.dp))
             }
             Spacer(Modifier.height(8.dp))
             Text(
                 leaf.label,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = fg,
+                color = style.icon,
                 maxLines = 1
             )
         }
     }
 }
 
-/** 屏幕四周渐变淡化内容。 */
+/** 屏幕四周渐变淡化内容（用背景色，通透不脏）。 */
 @Composable
 private fun EdgeFade(viewW: Float, viewH: Float, fade: Float) {
-    val fadeColor = Color.Black.copy(alpha = 0.28f)
+    val fadeColor = FrostWhite.copy(alpha = 0.9f)
     Box(Modifier.fillMaxSize()) {
         // 左侧淡化
         Box(
@@ -478,6 +494,26 @@ private fun ExpandedFeature(
                     Routes.SETTINGS -> SettingsScreen(onLogout = { onRequestAuth() })
                     else -> Text("功能开发中", modifier = Modifier.padding(24.dp))
                 }
+            }
+        }
+
+        // 显式关闭按钮（右上角），除返回键外提供清晰退出入口
+        Surface(
+            onClick = onClose,
+            shape = CircleShape,
+            color = Color.White.copy(alpha = 0.85f),
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(20.dp)
+                .size(40.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = "关闭",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }

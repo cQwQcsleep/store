@@ -77,13 +77,19 @@ class SkyRepository @Inject constructor(
             if (resp.success) Unit else throw SkyApiError(resp.message ?: "重置失败")
         }
 
-    suspend fun me(): Result<User> =
-        safeSuspend({
-            val resp = api.me()
-            val user = resp.user ?: throw SkyApiError(resp.message ?: "未登录")
-            session.onLogin(user)
-            user
-        }, "未登录") { it }
+    suspend fun me(): Result<User> = try {
+        val resp = api.me()
+        val user = resp.user ?: throw SkyApiError("未登录")
+        session.onLogin(user)
+        Result.success(user)
+    } catch (e: HttpException) {
+        // 仅 401 视为"确实未登录"（Cookie 失效）；其余（5xx 等）不判为未登录
+        val unauthorized = e.code() == 401
+        Result.failure(SkyApiError(extractMessage(e, "未登录"), unauthorized))
+    } catch (e: Throwable) {
+        // 网络异常/超时：非未登录，不应据此清除本地会话
+        Result.failure(SkyApiError(extractMessage(e, "未登录"), false))
+    }
 
     /**
      * 统一异常安全的网络调用：业务失败抛 [SkyApiError]；
@@ -424,4 +430,4 @@ class SkyRepository @Inject constructor(
         }
 }
 
-class SkyApiError(message: String) : Exception(message)
+class SkyApiError(message: String, val unauthorized: Boolean = false) : Exception(message)
