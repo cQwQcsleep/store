@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -294,17 +295,37 @@ fun ChatProviderBadge(provider: ProviderConfig?, modelId: String?) {
     }
 }
 
-/** 输入栏（发送 / 停止）。 */
+/** 输入栏（发送 / 停止 / 建议队列）。 */
 @Composable
 fun ChatInputBar(
     onSend: (String) -> Unit,
     onStop: () -> Unit,
     isStreaming: Boolean,
     enabled: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    pendingCount: Int = 0
 ) {
     var input by remember { mutableStateOf("") }
     Column(modifier) {
+        if (pendingCount > 0) {
+            Row(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Schedule,
+                    contentDescription = null,
+                    tint = MiColors.AccentCyan.copy(alpha = 0.8f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "$pendingCount 条修改意见已排队，AI 本轮结束后自动处理",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MiColors.AccentCyan.copy(alpha = 0.85f)
+                )
+            }
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()

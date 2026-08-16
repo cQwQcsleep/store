@@ -116,7 +116,8 @@ fun ChatBottomPanel(
             onSend = { viewModel.send(it) },
             onStop = { viewModel.stop() },
             isStreaming = uiState.isStreaming,
-            enabled = viewModel.canSend(),
+            enabled = uiState.activeProvider != null,
+            pendingCount = uiState.pendingSuggestions.size,
             modifier = Modifier.padding(bottom = 8.dp)
         )
     }

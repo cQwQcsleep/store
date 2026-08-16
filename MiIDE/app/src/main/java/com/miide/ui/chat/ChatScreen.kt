@@ -76,7 +76,8 @@ fun ChatScreen(
                 onSend = { viewModel.send(it) },
                 onStop = { viewModel.stop() },
                 isStreaming = uiState.isStreaming,
-                enabled = viewModel.canSend()
+                enabled = uiState.activeProvider != null,
+                pendingCount = uiState.pendingSuggestions.size
             )
         }
     ) { innerPadding ->

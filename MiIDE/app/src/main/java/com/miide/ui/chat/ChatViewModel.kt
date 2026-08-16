@@ -49,7 +49,9 @@ data class ChatUiState(
     val usage: UsageInfo? = null,
     val error: String? = null,
     /** 是否已连接编辑器（决定是否显示「插入编辑器」按钮）。 */
-    val editorAttached: Boolean = false
+    val editorAttached: Boolean = false,
+    /** 建议队列：AI 工作时用户发送的修改意见，本轮结束后自动处理。 */
+    val pendingSuggestions: List<String> = emptyList()
 ) {
     val activeModelId: String?
         get() = activeProvider?.defaultModelId
@@ -97,16 +99,27 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    /** 是否有供应商可发送。 */
-    fun canSend(): Boolean {
-        val st = _uiState.value
-        return !st.isStreaming && (streamingJob?.isActive != true) && st.activeProvider != null
-    }
-
-    /** 发送用户消息并启动流式回复。 */
+    /**
+     * 发送用户消息。
+     *
+     * AI 正在工作时（流式进行中）发送的内容会进入建议队列（非阻塞、不打断），
+     * 本轮结束后按顺序自动处理。
+     */
     fun send(text: String) {
         val trimmed = text.trim()
-        if (trimmed.isEmpty() || !canSend()) return
+        if (trimmed.isEmpty()) return
+        if (_uiState.value.isStreaming) {
+            // AI 工作中：入队，不打断
+            _uiState.update {
+                it.copy(pendingSuggestions = it.pendingSuggestions + trimmed, error = null)
+            }
+            return
+        }
+        doSend(trimmed)
+    }
+
+    /** 实际发送一条消息并启动流式回复。 */
+    private fun doSend(text: String) {
         val st = _uiState.value
         val provider = st.activeProvider ?: run {
             _uiState.update { it.copy(error = "未配置可用的 AI 供应商，请先到「AI 设置」中添加") }
@@ -121,7 +134,7 @@ class ChatViewModel @Inject constructor(
             // 首次发送时创建会话
             val cid = conversationId ?: run {
                 val conv = ChatConversation(
-                    title = trimmed.take(20),
+                    title = text.take(20),
                     providerConfigId = provider.id,
                     modelId = modelId
                 )
@@ -131,7 +144,7 @@ class ChatViewModel @Inject constructor(
             }
 
             // 用户消息（持久化）
-            val userMsg = ChatMessage(role = ChatRole.USER, content = trimmed)
+            val userMsg = ChatMessage(role = ChatRole.USER, content = text)
             conversationRepository.upsertMessage(cid, userMsg)
             _uiState.update { it.copy(messages = it.messages + userMsg, error = null) }
 
@@ -182,6 +195,7 @@ class ChatViewModel @Inject constructor(
         }
         finalizeAssistant(id) { it.copy(status = MessageStatus.INTERRUPTED) }
         _uiState.update { it.copy(isStreaming = false) }
+        drainPending()
     }
 
     /** 把 AI 生成的文本插入到编辑器光标处；返回是否已插入。 */
@@ -229,6 +243,16 @@ class ChatViewModel @Inject constructor(
         }
         _uiState.update { it.copy(isStreaming = false) }
         assistantId = null
+        // 本轮结束，按顺序处理建议队列
+        drainPending()
+    }
+
+    /** 本轮结束后处理建议队列：取出第一条按顺序发送。 */
+    private fun drainPending() {
+        val pending = _uiState.value.pendingSuggestions
+        if (pending.isEmpty() || _uiState.value.isStreaming) return
+        _uiState.update { it.copy(pendingSuggestions = it.pendingSuggestions.drop(1)) }
+        doSend(pending.first())
     }
 
     /** 将流式消息落库并标记完成。 */
