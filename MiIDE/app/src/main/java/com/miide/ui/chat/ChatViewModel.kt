@@ -14,6 +14,7 @@ import com.miide.core.network.ProviderEvent
 import com.miide.core.network.ProviderGateway
 import com.miide.core.network.ProviderRequest
 import com.miide.core.network.ProviderResult
+import com.miide.ui.editor.EditorBridge
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -46,7 +47,9 @@ data class ChatUiState(
     val isStreaming: Boolean = false,
     val currentToolCalls: List<ToolCallInfo> = emptyList(),
     val usage: UsageInfo? = null,
-    val error: String? = null
+    val error: String? = null,
+    /** 是否已连接编辑器（决定是否显示「插入编辑器」按钮）。 */
+    val editorAttached: Boolean = false
 ) {
     val activeModelId: String?
         get() = activeProvider?.defaultModelId
@@ -85,6 +88,12 @@ class ChatViewModel @Inject constructor(
                         ?: providers.firstOrNull { it.enabled }
                     _uiState.update { it.copy(providers = providers, activeProvider = active) }
                 }
+        }
+        // 同步编辑器连接状态（用于「插入编辑器」按钮显隐）
+        viewModelScope.launch {
+            EditorBridge.attached.collect { attached ->
+                _uiState.update { it.copy(editorAttached = attached) }
+            }
         }
     }
 
@@ -173,6 +182,13 @@ class ChatViewModel @Inject constructor(
         }
         finalizeAssistant(id) { it.copy(status = MessageStatus.INTERRUPTED) }
         _uiState.update { it.copy(isStreaming = false) }
+    }
+
+    /** 把 AI 生成的文本插入到编辑器光标处；返回是否已插入。 */
+    fun insertToEditor(text: String): Boolean {
+        if (!_uiState.value.editorAttached || text.isBlank()) return false
+        EditorBridge.insertAtCursor(text)
+        return true
     }
 
     private fun handleEvent(event: ProviderEvent) {

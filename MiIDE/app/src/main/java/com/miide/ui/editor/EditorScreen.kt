@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.FormatAlignLeft
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +56,7 @@ fun EditorScreen(
     fileUri: String,
     initialName: String,
     onBack: () -> Unit,
+    onOpenChat: () -> Unit = {},
     viewModel: EditorViewModel = viewModel()
 ) {
     val text by viewModel.text.collectAsState()
@@ -130,6 +133,9 @@ fun EditorScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenChat) {
+                        Icon(Icons.Default.SmartToy, contentDescription = "AI 助手")
+                    }
                     IconButton(onClick = { viewModel.undo() }, enabled = snapshot.canUndo) {
                         Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "撤销")
                     }
@@ -168,7 +174,10 @@ fun EditorScreen(
                 fontSize = 14f,
                 tabWidth = 4,
                 wordWrap = false,
-                onEditorReady = { controller -> viewModel.attach(controller) },
+                onEditorReady = { controller ->
+                    viewModel.attach(controller)
+                    EditorBridge.register(controller)
+                },
                 onStateChange = { state ->
                     viewModel.onSnapshotChanged(
                         EditorSnapshot(
@@ -184,6 +193,11 @@ fun EditorScreen(
                 onTextChange = { newText -> viewModel.onTextChanged(newText) }
             )
         }
+    }
+
+    // 离开编辑器时注销桥接，避免 AI 对话页误插入到已销毁的视图
+    DisposableEffect(Unit) {
+        onDispose { EditorBridge.register(null) }
     }
 }
 

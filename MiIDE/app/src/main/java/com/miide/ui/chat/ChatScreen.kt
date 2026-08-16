@@ -98,7 +98,12 @@ fun ChatScreen(
                     items(uiState.messages, key = { it.id }) { message ->
                         MessageBubble(
                             message = message,
-                            isStreaming = uiState.isStreaming && message.id == uiState.messages.lastOrNull()?.id
+                            isStreaming = uiState.isStreaming && message.id == uiState.messages.lastOrNull()?.id,
+                            onInsert = if (uiState.editorAttached) {
+                                { viewModel.insertToEditor(message.content) }
+                            } else {
+                                null
+                            }
                         )
                     }
                 }

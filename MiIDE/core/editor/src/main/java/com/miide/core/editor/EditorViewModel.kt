@@ -23,6 +23,9 @@ interface EditorController {
 
     /** 请求焦点；返回是否成功获得焦点。 */
     fun requestFocus(): Boolean
+
+    /** 在当前光标位置插入文本（用于 AI 生成代码一键插入）。 */
+    fun insertText(text: String)
 }
 
 /** [CodeEditor] 视图的默认实现。 */
@@ -39,6 +42,11 @@ internal class CodeEditorController(
     }
     override fun getText(): String = editor.getText().toString()
     override fun requestFocus(): Boolean = editor.requestFocus()
+    override fun insertText(text: String) {
+        if (text.isEmpty()) return
+        // commitText 在当前光标处插入，且内部按一次输入处理（可整体撤销）
+        editor.commitText(text)
+    }
 }
 
 /**

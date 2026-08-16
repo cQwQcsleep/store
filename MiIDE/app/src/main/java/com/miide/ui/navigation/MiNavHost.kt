@@ -82,7 +82,8 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
             EditorScreen(
                 fileUri = uri,
                 initialName = name,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenChat = { navController.navigate(Routes.CHAT) }
             )
         }
     }

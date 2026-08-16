@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,7 +45,11 @@ import com.miide.core.model.ProviderConfig
 
 /** 消息气泡。 */
 @Composable
-fun MessageBubble(message: ChatMessage, isStreaming: Boolean) {
+fun MessageBubble(
+    message: ChatMessage,
+    isStreaming: Boolean,
+    onInsert: (() -> Unit)? = null
+) {
     if (message.isUser) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -121,6 +126,45 @@ fun MessageBubble(message: ChatMessage, isStreaming: Boolean) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
+                }
+
+                // 完成后可一键插入编辑器
+                if (onInsert != null &&
+                    !isStreaming &&
+                    message.status == MessageStatus.COMPLETED &&
+                    message.content.isNotBlank()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            onClick = onInsert,
+                            shape = RoundedCornerShape(8.dp),
+                            color = MiColors.AccentCyan.copy(alpha = 0.14f),
+                            contentColor = MiColors.AccentCyan
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.NorthWest,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "插入编辑器",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
