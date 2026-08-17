@@ -1,0 +1,44 @@
+{
+  "languages": [
+    {
+      "grammar": "textmate/html/syntaxes/html.tmLanguage.json",
+      "name": "html",
+      "scopeName": "text.html.basic"
+    },
+    {
+      "grammar": "textmate/css/syntaxes/css.tmLanguage.json",
+      "name": "css",
+      "scopeName": "source.css"
+    },
+    {
+      "grammar": "textmate/js/syntaxes/js.tmLanguage.json",
+      "name": "javascript",
+      "scopeName": "source.js"
+    },
+    {
+      "grammar": "textmate/json/syntaxes/json.tmLanguage.json",
+      "name": "json",
+      "scopeName": "source.json"
+    },
+    {
+      "grammar": "textmate/java/syntaxes/java.tmLanguage.json",
+      "name": "java",
+      "scopeName": "source.java"
+    },
+    {
+      "grammar": "textmate/kotlin/syntaxes/kotlin.tmLanguage.json",
+      "name": "kotlin",
+      "scopeName": "source.kotlin"
+    },
+    {
+      "grammar": "textmate/xml/syntaxes/xml.tmLanguage.json",
+      "name": "xml",
+      "scopeName": "text.xml"
+    },
+    {
+      "grammar": "textmate/groovy/syntaxes/groovy.json",
+      "name": "groovy",
+      "scopeName": "source.groovy"
+    }
+  ]
+}

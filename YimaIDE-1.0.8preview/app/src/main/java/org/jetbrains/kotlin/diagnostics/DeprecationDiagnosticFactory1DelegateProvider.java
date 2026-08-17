@@ -1,0 +1,35 @@
+package org.jetbrains.kotlin.diagnostics;
+
+import kotlin.Metadata;
+import kotlin.properties.ReadOnlyProperty;
+import kotlin.reflect.KClass;
+import kotlin.reflect.KProperty;
+import org.jetbrains.kotlin.cli.common.arguments.Argument;
+import org.jetbrains.kotlin.config.LanguageFeature;
+import org.jetbrains.kotlin.config.MavenComparableVersion;
+import org.jetbrains.kotlin.utils.DummyDelegate;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes11.dex */
+@Metadata(d1 = {"\u00008\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\u0000\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\u0018\u0000*\u0004\b\u0000\u0010\u00012\u00020\u0002B+\u0012\u0006\u0010\u0003\u001a\u00020\u0004\u0012\u0006\u0010\u0005\u001a\u00020\u0006\u0012\n\u0010\u0007\u001a\u0006\u0012\u0002\b\u00030\b\u0012\u0006\u0010\t\u001a\u00020\n¢\u0006\u0004\b\u000b\u0010\fJ3\u0010\r\u001a\u0016\u0012\u0006\u0012\u0004\u0018\u00010\u0002\u0012\n\u0012\b\u0012\u0004\u0012\u00028\u00000\u000f0\u000e2\b\u0010\u0010\u001a\u0004\u0018\u00010\u00022\n\u0010\u0011\u001a\u0006\u0012\u0002\b\u00030\u0012H\u0086\u0002R\u000e\u0010\u0003\u001a\u00020\u0004X\u0082\u0004¢\u0006\u0002\n\u0000R\u000e\u0010\u0005\u001a\u00020\u0006X\u0082\u0004¢\u0006\u0002\n\u0000R\u0012\u0010\u0007\u001a\u0006\u0012\u0002\b\u00030\bX\u0082\u0004¢\u0006\u0002\n\u0000R\u000e\u0010\t\u001a\u00020\nX\u0082\u0004¢\u0006\u0002\n\u0000¨\u0006\u0013"}, d2 = {"Lorg/jetbrains/kotlin/diagnostics/DeprecationDiagnosticFactory1DelegateProvider;", "A", Argument.Delimiters.none, "featureForError", "Lorg/jetbrains/kotlin/config/LanguageFeature;", "positioningStrategy", "Lorg/jetbrains/kotlin/diagnostics/AbstractSourceElementPositioningStrategy;", "psiType", "Lkotlin/reflect/KClass;", "container", "Lorg/jetbrains/kotlin/diagnostics/KtDiagnosticsContainer;", "<init>", "(Lorg/jetbrains/kotlin/config/LanguageFeature;Lorg/jetbrains/kotlin/diagnostics/AbstractSourceElementPositioningStrategy;Lkotlin/reflect/KClass;Lorg/jetbrains/kotlin/diagnostics/KtDiagnosticsContainer;)V", "provideDelegate", "Lkotlin/properties/ReadOnlyProperty;", "Lorg/jetbrains/kotlin/diagnostics/KtDiagnosticFactoryForDeprecation1;", "thisRef", "prop", "Lkotlin/reflect/KProperty;", "org.jetbrains.kotlin:frontend.common-psi"}, k = 1, mv = {MavenComparableVersion.Item.LIST_ITEM, 4, MavenComparableVersion.Item.INTEGER_ITEM}, xi = 48)
+public final class DeprecationDiagnosticFactory1DelegateProvider<A> {
+    private final KtDiagnosticsContainer container;
+    private final LanguageFeature featureForError;
+    private final AbstractSourceElementPositioningStrategy positioningStrategy;
+    private final KClass<?> psiType;
+
+    public DeprecationDiagnosticFactory1DelegateProvider(LanguageFeature languageFeature, AbstractSourceElementPositioningStrategy abstractSourceElementPositioningStrategy, KClass<?> kClass, KtDiagnosticsContainer ktDiagnosticsContainer) {
+        languageFeature.getClass();
+        abstractSourceElementPositioningStrategy.getClass();
+        kClass.getClass();
+        ktDiagnosticsContainer.getClass();
+        this.featureForError = languageFeature;
+        this.positioningStrategy = abstractSourceElementPositioningStrategy;
+        this.psiType = kClass;
+        this.container = ktDiagnosticsContainer;
+    }
+
+    public final ReadOnlyProperty<Object, KtDiagnosticFactoryForDeprecation1<A>> provideDelegate(Object thisRef, KProperty<?> prop) {
+        prop.getClass();
+        return new DummyDelegate(new KtDiagnosticFactoryForDeprecation1(prop.getName(), this.featureForError, this.positioningStrategy, this.psiType, this.container.getRendererFactory()));
+    }
+}

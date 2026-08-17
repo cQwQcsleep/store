@@ -1,0 +1,7 @@
+package com.android.tools.r8.internal;
+
+/* JADX INFO: renamed from: com.android.tools.r8.internal.Yh, reason: case insensitive filesystem */
+/* JADX INFO: loaded from: /workspace/dex_all/classes5.dex */
+public final class C0979Yh {
+    public static final C0979Yh a = new C0979Yh();
+}

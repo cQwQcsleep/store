@@ -1,0 +1,52 @@
+package org.jetbrains.kotlin.backend.common.linkage.partial;
+
+import kotlin.Metadata;
+import kotlin.enums.EnumEntries;
+import kotlin.enums.EnumEntriesKt;
+import org.eclipse.jdt.internal.compiler.util.SuffixConstants;
+import org.jetbrains.kotlin.codegen.optimization.CapturedVarsOptimizationMethodTransformerKt;
+import org.jetbrains.kotlin.load.java.JvmAbi;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes10.dex */
+@Metadata(d1 = {"\u0000\u0012\n\u0002\u0018\u0002\n\u0002\u0010\u0010\n\u0000\n\u0002\u0010\u000e\n\u0002\b\u001d\b\u0082\u0081\u0002\u0018\u00002\b\u0012\u0004\u0012\u00020\u00000\u0001B\u0011\b\u0002\u0012\u0006\u0010\u0002\u001a\u00020\u0003¢\u0006\u0004\b\u0004\u0010\u0005R\u0011\u0010\u0002\u001a\u00020\u0003¢\u0006\b\n\u0000\u001a\u0004\b\u0006\u0010\u0007j\u0002\b\bj\u0002\b\tj\u0002\b\nj\u0002\b\u000bj\u0002\b\fj\u0002\b\rj\u0002\b\u000ej\u0002\b\u000fj\u0002\b\u0010j\u0002\b\u0011j\u0002\b\u0012j\u0002\b\u0013j\u0002\b\u0014j\u0002\b\u0015j\u0002\b\u0016j\u0002\b\u0017j\u0002\b\u0018j\u0002\b\u0019j\u0002\b\u001aj\u0002\b\u001bj\u0002\b\u001cj\u0002\b\u001dj\u0002\b\u001ej\u0002\b\u001f¨\u0006 "}, d2 = {"Lorg/jetbrains/kotlin/backend/common/linkage/partial/DeclarationKind;", "", "displayName", "", CapturedVarsOptimizationMethodTransformerKt.INIT_METHOD_NAME, "(Ljava/lang/String;ILjava/lang/String;)V", "getDisplayName", "()Ljava/lang/String;", SuffixConstants.EXTENSION_CLASS, "INNER_CLASS", "DATA_CLASS", "VALUE_CLASS", "INTERFACE", "FUN_INTERFACE", "ENUM_CLASS", "ENUM_ENTRY", "ENUM_ENTRY_CLASS", "ANNOTATION_CLASS", "OBJECT", "ANONYMOUS_OBJECT", "COMPANION_OBJECT", "VARIABLE", "VALUE_PARAMETER", "FIELD", "FIELD_OF_PROPERTY", "PROPERTY", "PROPERTY_ACCESSOR", "LAMBDA", "FUNCTION", "CONSTRUCTOR", "TYPE_PARAMETER", "OTHER_DECLARATION", "org.jetbrains.kotlin:ir.serialization.common"}, k = 1, mv = {2, 2, 0}, xi = 48)
+enum DeclarationKind {
+    CLASS(SuffixConstants.EXTENSION_class),
+    INNER_CLASS("inner class"),
+    DATA_CLASS("data class"),
+    VALUE_CLASS("value class"),
+    INTERFACE("interface"),
+    FUN_INTERFACE("fun interface"),
+    ENUM_CLASS("enum class"),
+    ENUM_ENTRY("enum entry"),
+    ENUM_ENTRY_CLASS("enum entry class"),
+    ANNOTATION_CLASS("annotation class"),
+    OBJECT("object"),
+    ANONYMOUS_OBJECT("anonymous object"),
+    COMPANION_OBJECT("companion object"),
+    VARIABLE("variable"),
+    VALUE_PARAMETER("value parameter"),
+    FIELD("field"),
+    FIELD_OF_PROPERTY("backing field of property"),
+    PROPERTY("property"),
+    PROPERTY_ACCESSOR("property accessor"),
+    LAMBDA("lambda"),
+    FUNCTION("function"),
+    CONSTRUCTOR(JvmAbi.ERASED_INLINE_CONSTRUCTOR_NAME),
+    TYPE_PARAMETER("type parameter"),
+    OTHER_DECLARATION("declaration");
+
+    private static final /* synthetic */ EnumEntries $ENTRIES = EnumEntriesKt.enumEntries(values());
+    private final String displayName;
+
+    DeclarationKind(String str) {
+        this.displayName = str;
+    }
+
+    public static EnumEntries<DeclarationKind> getEntries() {
+        return $ENTRIES;
+    }
+
+    public final String getDisplayName() {
+        return this.displayName;
+    }
+}

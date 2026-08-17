@@ -1,0 +1,107 @@
+{
+  "name": "JSON",
+  "scopeName": "source.json",
+  "patterns": [
+    {
+      "include": "#value"
+    }
+  ],
+  "repository": {
+    "array": {
+      "begin": "\\[",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.array.begin.json" }
+      },
+      "end": "\\]",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.array.end.json" }
+      },
+      "patterns": [
+        {
+          "include": "#value"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.array.json"
+        }
+      ]
+    },
+    "boolean": {
+      "match": "\\b(true|false)\\b",
+      "name": "constant.language.boolean.json"
+    },
+    "null": {
+      "match": "\\bnull\\b",
+      "name": "constant.language.null.json"
+    },
+    "number": {
+      "match": "(?x:        -?           # an optional minus sign\n  (?:\n    0           # a zero\n    |           # ...or...\n    [1-9]\\d*   # a non-zero digit followed by zero or more digits\n  )\n  (?:\n    (?:\n      \\.\\d+     # a period followed by one or more digits\n    )?\n    (?:\n      [eE]      # an exponent marker\n      [+-]?     # with an optional sign\n      \\d+       # followed by one or more digits\n    )?           # exponent is optional\n  )             # everything after the integer part is optional\n)",
+      "name": "constant.numeric.json"
+    },
+    "object": {
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.dictionary.begin.json" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.dictionary.end.json" }
+      },
+      "patterns": [
+        {
+          "include": "#string"
+        },
+        {
+          "match": ":",
+          "name": "punctuation.separator.dictionary.key-value.json"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.dictionary.pair.json"
+        },
+        {
+          "include": "#value"
+        }
+      ]
+    },
+    "string": {
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.json" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.json" }
+      },
+      "name": "string.quoted.double.json",
+      "patterns": [
+        {
+          "match": "(?:[^\\\\\"]|\\\\.)*",
+          "name": "meta.string-contents.json"
+        }
+      ]
+    },
+    "value": {
+      "patterns": [
+        {
+          "include": "#array"
+        },
+        {
+          "include": "#object"
+        },
+        {
+          "include": "#string"
+        },
+        {
+          "include": "#number"
+        },
+        {
+          "include": "#boolean"
+        },
+        {
+          "include": "#null"
+        }
+      ]
+    }
+  }
+}

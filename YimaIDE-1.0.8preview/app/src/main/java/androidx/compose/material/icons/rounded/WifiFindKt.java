@@ -1,0 +1,77 @@
+package androidx.compose.material.icons.rounded;
+
+import androidx.compose.material.icons.Icons;
+import androidx.compose.ui.graphics.Brush;
+import androidx.compose.ui.graphics.Color;
+import androidx.compose.ui.graphics.SolidColor;
+import androidx.compose.ui.graphics.StrokeCap;
+import androidx.compose.ui.graphics.StrokeJoin;
+import androidx.compose.ui.graphics.vector.ImageVector;
+import androidx.compose.ui.graphics.vector.PathBuilder;
+import androidx.compose.ui.graphics.vector.VectorKt;
+import androidx.compose.ui.unit.Dp;
+import kotlin.Metadata;
+import kotlin.jvm.internal.DefaultConstructorMarker;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes.dex */
+@Metadata(d1 = {"\u0000\u0010\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\"\u0010\u0010\u0000\u001a\u0004\u0018\u00010\u0001X\u0082\u000e¢\u0006\u0002\n\u0000\"\u0015\u0010\u0002\u001a\u00020\u0001*\u00020\u00038F¢\u0006\u0006\u001a\u0004\b\u0004\u0010\u0005¨\u0006\u0006"}, d2 = {"_wifiFind", "Landroidx/compose/ui/graphics/vector/ImageVector;", "WifiFind", "Landroidx/compose/material/icons/Icons$Rounded;", "getWifiFind", "(Landroidx/compose/material/icons/Icons$Rounded;)Landroidx/compose/ui/graphics/vector/ImageVector;", "material-icons-extended_release"}, k = 2, mv = {1, 8, 0}, xi = 48)
+public final class WifiFindKt {
+    private static ImageVector _wifiFind;
+
+    public static final ImageVector getWifiFind(Icons.Rounded rounded) {
+        ImageVector imageVector = _wifiFind;
+        if (imageVector != null) {
+            imageVector.getClass();
+            return imageVector;
+        }
+        ImageVector.Builder builder = new ImageVector.Builder("Rounded.WifiFind", Dp.constructor-impl(24.0f), Dp.constructor-impl(24.0f), 24.0f, 24.0f, 0L, 0, false, 96, (DefaultConstructorMarker) null);
+        int defaultFillType = VectorKt.getDefaultFillType();
+        Color.Companion companion = Color.Companion;
+        SolidColor solidColor = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        StrokeCap.Companion companion2 = StrokeCap.Companion;
+        int i = companion2.getButt-KaPHkGw();
+        StrokeJoin.Companion companion3 = StrokeJoin.Companion;
+        int i2 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder = new PathBuilder();
+        pathBuilder.moveTo(11.0f, 14.0f);
+        pathBuilder.curveToRelative(0.0f, -3.36f, 2.64f, -6.0f, 6.0f, -6.0f);
+        pathBuilder.curveToRelative(2.2f, 0.0f, 4.08f, 1.13f, 5.13f, 2.86f);
+        pathBuilder.lineToRelative(0.36f, -0.37f);
+        pathBuilder.curveToRelative(0.86f, -0.86f, 0.76f, -2.27f, -0.2f, -3.01f);
+        pathBuilder.curveTo(19.44f, 5.3f, 15.87f, 4.0f, 12.0f, 4.0f);
+        pathBuilder.curveTo(8.13f, 4.0f, 4.56f, 5.3f, 1.71f, 7.48f);
+        pathBuilder.curveToRelative(-0.96f, 0.74f, -1.06f, 2.15f, -0.2f, 3.01f);
+        pathBuilder.lineToRelative(9.08f, 9.09f);
+        pathBuilder.curveToRelative(0.78f, 0.78f, 2.05f, 0.78f, 2.83f, 0.0f);
+        pathBuilder.lineToRelative(0.45f, -0.45f);
+        pathBuilder.curveTo(12.14f, 18.09f, 11.0f, 16.2f, 11.0f, 14.0f);
+        pathBuilder.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder.getNodes(), defaultFillType, "", solidColor, 1.0f, (Brush) null, 1.0f, 1.0f, i, i2, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType2 = VectorKt.getDefaultFillType();
+        SolidColor solidColor2 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i3 = companion2.getButt-KaPHkGw();
+        int i4 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder2 = new PathBuilder();
+        pathBuilder2.moveTo(20.44f, 16.03f);
+        pathBuilder2.curveTo(20.79f, 15.44f, 21.0f, 14.75f, 21.0f, 14.0f);
+        pathBuilder2.curveToRelative(0.0f, -2.24f, -1.76f, -4.0f, -4.0f, -4.0f);
+        pathBuilder2.reflectiveCurveToRelative(-4.0f, 1.76f, -4.0f, 4.0f);
+        pathBuilder2.curveToRelative(0.0f, 2.24f, 1.76f, 4.0f, 4.0f, 4.0f);
+        pathBuilder2.curveToRelative(0.75f, 0.0f, 1.44f, -0.21f, 2.03f, -0.56f);
+        pathBuilder2.lineToRelative(1.85f, 1.85f);
+        pathBuilder2.curveToRelative(0.39f, 0.39f, 1.02f, 0.39f, 1.41f, 0.0f);
+        pathBuilder2.curveToRelative(0.39f, -0.39f, 0.39f, -1.02f, 0.0f, -1.41f);
+        pathBuilder2.lineTo(20.44f, 16.03f);
+        pathBuilder2.close();
+        pathBuilder2.moveTo(17.0f, 16.0f);
+        pathBuilder2.curveToRelative(-1.12f, 0.0f, -2.0f, -0.88f, -2.0f, -2.0f);
+        pathBuilder2.curveToRelative(0.0f, -1.12f, 0.88f, -2.0f, 2.0f, -2.0f);
+        pathBuilder2.reflectiveCurveToRelative(2.0f, 0.88f, 2.0f, 2.0f);
+        pathBuilder2.curveTo(19.0f, 15.12f, 18.12f, 16.0f, 17.0f, 16.0f);
+        pathBuilder2.close();
+        ImageVector imageVectorBuild = ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder2.getNodes(), defaultFillType2, "", solidColor2, 1.0f, (Brush) null, 1.0f, 1.0f, i3, i4, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null).build();
+        _wifiFind = imageVectorBuild;
+        imageVectorBuild.getClass();
+        return imageVectorBuild;
+    }
+}

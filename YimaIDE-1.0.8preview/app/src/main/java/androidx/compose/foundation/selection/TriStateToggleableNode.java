@@ -1,0 +1,67 @@
+package androidx.compose.foundation.selection;
+
+import androidx.compose.foundation.ClickableNode;
+import androidx.compose.foundation.IndicationNodeFactory;
+import androidx.compose.foundation.interaction.MutableInteractionSource;
+import androidx.compose.ui.autofill.ContentDataType;
+import androidx.compose.ui.autofill.FillableData;
+import androidx.compose.ui.autofill.FillableData_androidKt;
+import androidx.compose.ui.node.SemanticsModifierNodeKt;
+import androidx.compose.ui.semantics.Role;
+import androidx.compose.ui.semantics.SemanticsPropertiesKt;
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver;
+import androidx.compose.ui.state.ToggleableState;
+import androidx.compose.ui.state.ToggleableStateKt;
+import kotlin.Metadata;
+import kotlin.Unit;
+import kotlin.jvm.functions.Function0;
+import kotlin.jvm.functions.Function1;
+import kotlin.jvm.internal.DefaultConstructorMarker;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes.dex */
+@Metadata(d1 = {"\u0000<\n\u0002\u0018\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0010\u000b\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\u0010\u0002\n\u0002\b\u0005\n\u0002\u0018\u0002\n\u0000\b\u0002\u0018\u00002\u00020\u0001BK\u0012\u0006\u0010\u0002\u001a\u00020\u0003\u0012\b\u0010\u0004\u001a\u0004\u0018\u00010\u0005\u0012\b\u0010\u0006\u001a\u0004\u0018\u00010\u0007\u0012\u0006\u0010\b\u001a\u00020\t\u0012\u0006\u0010\n\u001a\u00020\t\u0012\b\u0010\u000b\u001a\u0004\u0018\u00010\f\u0012\f\u0010\r\u001a\b\u0012\u0004\u0012\u00020\u000f0\u000e¢\u0006\u0004\b\u0010\u0010\u0011JO\u0010\u0012\u001a\u00020\u000f2\u0006\u0010\u0002\u001a\u00020\u00032\b\u0010\u0004\u001a\u0004\u0018\u00010\u00052\b\u0010\u0006\u001a\u0004\u0018\u00010\u00072\u0006\u0010\b\u001a\u00020\t2\u0006\u0010\n\u001a\u00020\t2\b\u0010\u000b\u001a\u0004\u0018\u00010\f2\f\u0010\r\u001a\b\u0012\u0004\u0012\u00020\u000f0\u000e¢\u0006\u0002\b\u0013J\f\u0010\u0014\u001a\u00020\u000f*\u00020\u0015H\u0016R\u000e\u0010\u0002\u001a\u00020\u0003X\u0082\u000e¢\u0006\u0002\n\u0000¨\u0006\u0016"}, d2 = {"Landroidx/compose/foundation/selection/TriStateToggleableNode;", "Landroidx/compose/foundation/ClickableNode;", "state", "Landroidx/compose/ui/state/ToggleableState;", "interactionSource", "Landroidx/compose/foundation/interaction/MutableInteractionSource;", "indicationNodeFactory", "Landroidx/compose/foundation/IndicationNodeFactory;", "useLocalIndication", "", "enabled", "role", "Landroidx/compose/ui/semantics/Role;", "onClick", "Lkotlin/Function0;", "", "<init>", "(Landroidx/compose/ui/state/ToggleableState;Landroidx/compose/foundation/interaction/MutableInteractionSource;Landroidx/compose/foundation/IndicationNodeFactory;ZZLandroidx/compose/ui/semantics/Role;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/internal/DefaultConstructorMarker;)V", "update", "update-O2vRcR0", "applyAdditionalSemantics", "Landroidx/compose/ui/semantics/SemanticsPropertyReceiver;", "foundation"}, k = 1, mv = {2, 0, 0}, xi = 48)
+final class TriStateToggleableNode extends ClickableNode {
+    private ToggleableState state;
+
+    private TriStateToggleableNode(ToggleableState toggleableState, MutableInteractionSource mutableInteractionSource, IndicationNodeFactory indicationNodeFactory, boolean z, boolean z2, Role role, Function0<Unit> function0) {
+        super(mutableInteractionSource, indicationNodeFactory, z, z2, null, role, function0, null);
+        this.state = toggleableState;
+    }
+
+    public static boolean d(SemanticsPropertyReceiver semanticsPropertyReceiver, FillableData fillableData) {
+        Boolean booleanValue = fillableData.getBooleanValue();
+        if (booleanValue == null) {
+            return false;
+        }
+        SemanticsPropertiesKt.setToggleableState(semanticsPropertyReceiver, ToggleableStateKt.ToggleableState(booleanValue.booleanValue()));
+        return true;
+    }
+
+    @Override // androidx.compose.foundation.AbstractClickableNode
+    public void applyAdditionalSemantics(final SemanticsPropertyReceiver semanticsPropertyReceiver) {
+        SemanticsPropertiesKt.setToggleableState(semanticsPropertyReceiver, this.state);
+        SemanticsPropertiesKt.setContentDataType(semanticsPropertyReceiver, ContentDataType.Companion.getToggle());
+        FillableData fillableDataCreateFromBoolean = FillableData_androidKt.createFromBoolean(FillableData.Companion, this.state != ToggleableState.Indeterminate);
+        if (fillableDataCreateFromBoolean != null) {
+            SemanticsPropertiesKt.setFillableData(semanticsPropertyReceiver, fillableDataCreateFromBoolean);
+        }
+        SemanticsPropertiesKt.onFillData$default(semanticsPropertyReceiver, (String) null, new Function1() { // from class: androidx.compose.foundation.selection.d
+            public final Object invoke(Object obj) {
+                return Boolean.valueOf(TriStateToggleableNode.d(semanticsPropertyReceiver, (FillableData) obj));
+            }
+        }, 1, (Object) null);
+    }
+
+    /* JADX INFO: renamed from: update-O2vRcR0, reason: not valid java name */
+    public final void m1267updateO2vRcR0(ToggleableState state, MutableInteractionSource interactionSource, IndicationNodeFactory indicationNodeFactory, boolean useLocalIndication, boolean enabled, Role role, Function0<Unit> onClick) {
+        if (this.state != state) {
+            this.state = state;
+            SemanticsModifierNodeKt.invalidateSemantics(this);
+        }
+        super.m374updateO2vRcR0(interactionSource, indicationNodeFactory, useLocalIndication, enabled, (String) null, role, onClick);
+    }
+
+    public /* synthetic */ TriStateToggleableNode(ToggleableState toggleableState, MutableInteractionSource mutableInteractionSource, IndicationNodeFactory indicationNodeFactory, boolean z, boolean z2, Role role, Function0 function0, DefaultConstructorMarker defaultConstructorMarker) {
+        this(toggleableState, mutableInteractionSource, indicationNodeFactory, z, z2, role, function0);
+    }
+}

@@ -1,0 +1,9 @@
+This file is Android API stubs (android.jar), packaged by AOSP soong_zip.
+
+AOSP framework source is typically Apache License 2.0. Redistributing SDK stubs
+inside an application may also be subject to the Android Software Development
+Kit License Agreement (which restricts some forms of redistribution).
+
+This app does not claim a clean Apache-2.0 right to redistribute this jar.
+See THIRD_PARTY_NOTICES.md in this folder's parent directory for the recorded
+SHA-256, API level, and provenance notes.

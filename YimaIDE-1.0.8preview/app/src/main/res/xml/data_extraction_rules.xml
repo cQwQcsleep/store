@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude
+            domain="sharedpref"
+            path="yima_auth.xml"/>
+        <exclude
+            domain="file"
+            path="project-signing"/>
+        <exclude
+            domain="file"
+            path="chat"/>
+        <exclude
+            domain="file"
+            path="chat_images"/>
+        <exclude
+            domain="file"
+            path="checkpoints"/>
+        <exclude
+            domain="file"
+            path="libcache"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude
+            domain="sharedpref"
+            path="yima_auth.xml"/>
+        <exclude
+            domain="file"
+            path="project-signing"/>
+        <exclude
+            domain="file"
+            path="chat"/>
+        <exclude
+            domain="file"
+            path="chat_images"/>
+        <exclude
+            domain="file"
+            path="checkpoints"/>
+        <exclude
+            domain="file"
+            path="libcache"/>
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,96 @@
+package org.jetbrains.kotlin.cli.common.arguments;
+
+import java.util.Arrays;
+import kotlin.Metadata;
+import org.jetbrains.kotlin.config.MavenComparableVersion;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes11.dex */
+@Metadata(d1 = {"\u0000\n\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\u001a\u0016\u0010\u0000\u001a\u00020\u00012\u0006\u0010\u0002\u001a\u00020\u00012\u0006\u0010\u0003\u001a\u00020\u0001¨\u0006\u0004"}, d2 = {"copyK2JVMCompilerArguments", "Lorg/jetbrains/kotlin/cli/common/arguments/K2JVMCompilerArguments;", "from", "to", "org.jetbrains.kotlin:cli-base"}, k = MavenComparableVersion.Item.LIST_ITEM, mv = {MavenComparableVersion.Item.LIST_ITEM, MavenComparableVersion.Item.LIST_ITEM, MavenComparableVersion.Item.INTEGER_ITEM}, xi = 48)
+public final class K2JVMCompilerArgumentsCopyGeneratedKt {
+    public static final K2JVMCompilerArguments copyK2JVMCompilerArguments(K2JVMCompilerArguments k2JVMCompilerArguments, K2JVMCompilerArguments k2JVMCompilerArguments2) {
+        k2JVMCompilerArguments.getClass();
+        k2JVMCompilerArguments2.getClass();
+        CommonCompilerArgumentsCopyGeneratedKt.copyCommonCompilerArguments(k2JVMCompilerArguments, k2JVMCompilerArguments2);
+        k2JVMCompilerArguments2.setAbiStability(k2JVMCompilerArguments.getAbiStability());
+        String[] additionalJavaModules = k2JVMCompilerArguments.getAdditionalJavaModules();
+        k2JVMCompilerArguments2.setAdditionalJavaModules((String[]) Arrays.copyOf(additionalJavaModules, additionalJavaModules.length));
+        k2JVMCompilerArguments2.setAllowNoSourceFiles(k2JVMCompilerArguments.getAllowNoSourceFiles());
+        k2JVMCompilerArguments2.setAllowUnstableDependencies(k2JVMCompilerArguments.getAllowUnstableDependencies());
+        k2JVMCompilerArguments2.setAnnotationsInMetadata(k2JVMCompilerArguments.getAnnotationsInMetadata());
+        k2JVMCompilerArguments2.setAssertionsMode(k2JVMCompilerArguments.getAssertionsMode());
+        k2JVMCompilerArguments2.setBackendThreads(k2JVMCompilerArguments.getBackendThreads());
+        k2JVMCompilerArguments2.setBuildFile(k2JVMCompilerArguments.getBuildFile());
+        k2JVMCompilerArguments2.setClasspath(k2JVMCompilerArguments.getClasspath());
+        k2JVMCompilerArguments2.setDefaultScriptExtension(k2JVMCompilerArguments.getDefaultScriptExtension());
+        k2JVMCompilerArguments2.setDestination(k2JVMCompilerArguments.getDestination());
+        k2JVMCompilerArguments2.setDisableStandardScript(k2JVMCompilerArguments.getDisableStandardScript());
+        k2JVMCompilerArguments2.setDoNotClearBindingContext(k2JVMCompilerArguments.getDoNotClearBindingContext());
+        k2JVMCompilerArguments2.setEmitJvmTypeAnnotations(k2JVMCompilerArguments.getEmitJvmTypeAnnotations());
+        k2JVMCompilerArguments2.setEnableDebugMode(k2JVMCompilerArguments.getEnableDebugMode());
+        k2JVMCompilerArguments2.setEnableJvmPreview(k2JVMCompilerArguments.getEnableJvmPreview());
+        k2JVMCompilerArguments2.setEnhanceTypeParameterTypesToDefNotNull(k2JVMCompilerArguments.getEnhanceTypeParameterTypesToDefNotNull());
+        k2JVMCompilerArguments2.setEnhancedCoroutinesDebugging(k2JVMCompilerArguments.getEnhancedCoroutinesDebugging());
+        k2JVMCompilerArguments2.setExpression(k2JVMCompilerArguments.getExpression());
+        String[] friendPaths = k2JVMCompilerArguments.getFriendPaths();
+        k2JVMCompilerArguments2.setFriendPaths((String[]) Arrays.copyOf(friendPaths, friendPaths.length));
+        String[] ignoredAnnotationsForBridges = k2JVMCompilerArguments.getIgnoredAnnotationsForBridges();
+        k2JVMCompilerArguments2.setIgnoredAnnotationsForBridges((String[]) Arrays.copyOf(ignoredAnnotationsForBridges, ignoredAnnotationsForBridges.length));
+        k2JVMCompilerArguments2.setIncludeRuntime(k2JVMCompilerArguments.getIncludeRuntime());
+        k2JVMCompilerArguments2.setIndyAllowAnnotatedLambdas(k2JVMCompilerArguments.getIndyAllowAnnotatedLambdas());
+        k2JVMCompilerArguments2.setInheritMultifileParts(k2JVMCompilerArguments.getInheritMultifileParts());
+        k2JVMCompilerArguments2.setJavaModulePath(k2JVMCompilerArguments.getJavaModulePath());
+        k2JVMCompilerArguments2.setJavaPackagePrefix(k2JVMCompilerArguments.getJavaPackagePrefix());
+        k2JVMCompilerArguments2.setJavaParameters(k2JVMCompilerArguments.getJavaParameters());
+        String[] javaSourceRoots = k2JVMCompilerArguments.getJavaSourceRoots();
+        k2JVMCompilerArguments2.setJavaSourceRoots((String[]) Arrays.copyOf(javaSourceRoots, javaSourceRoots.length));
+        k2JVMCompilerArguments2.setJdkHome(k2JVMCompilerArguments.getJdkHome());
+        k2JVMCompilerArguments2.setJdkRelease(k2JVMCompilerArguments.getJdkRelease());
+        k2JVMCompilerArguments2.setJspecifyAnnotations(k2JVMCompilerArguments.getJspecifyAnnotations());
+        String[] jsr305 = k2JVMCompilerArguments.getJsr305();
+        k2JVMCompilerArguments2.setJsr305((String[]) Arrays.copyOf(jsr305, jsr305.length));
+        k2JVMCompilerArguments2.setJvmDefault(k2JVMCompilerArguments.getJvmDefault());
+        k2JVMCompilerArguments2.setJvmDefaultStable(k2JVMCompilerArguments.getJvmDefaultStable());
+        k2JVMCompilerArguments2.setJvmExposeBoxed(k2JVMCompilerArguments.getJvmExposeBoxed());
+        k2JVMCompilerArguments2.setJvmTarget(k2JVMCompilerArguments.getJvmTarget());
+        k2JVMCompilerArguments2.setKlibLibraries(k2JVMCompilerArguments.getKlibLibraries());
+        k2JVMCompilerArguments2.setLambdas(k2JVMCompilerArguments.getLambdas());
+        k2JVMCompilerArguments2.setLinkViaSignatures(k2JVMCompilerArguments.getLinkViaSignatures());
+        k2JVMCompilerArguments2.setModuleName(k2JVMCompilerArguments.getModuleName());
+        k2JVMCompilerArguments2.setNoCallAssertions(k2JVMCompilerArguments.getNoCallAssertions());
+        k2JVMCompilerArguments2.setNoJdk(k2JVMCompilerArguments.getNoJdk());
+        k2JVMCompilerArguments2.setNoNewJavaAnnotationTargets(k2JVMCompilerArguments.getNoNewJavaAnnotationTargets());
+        k2JVMCompilerArguments2.setNoOptimize(k2JVMCompilerArguments.getNoOptimize());
+        k2JVMCompilerArguments2.setNoParamAssertions(k2JVMCompilerArguments.getNoParamAssertions());
+        k2JVMCompilerArguments2.setNoReceiverAssertions(k2JVMCompilerArguments.getNoReceiverAssertions());
+        k2JVMCompilerArguments2.setNoReflect(k2JVMCompilerArguments.getNoReflect());
+        k2JVMCompilerArguments2.setNoResetJarTimestamps(k2JVMCompilerArguments.getNoResetJarTimestamps());
+        k2JVMCompilerArguments2.setNoSourceDebugExtension(k2JVMCompilerArguments.getNoSourceDebugExtension());
+        k2JVMCompilerArguments2.setNoStdlib(k2JVMCompilerArguments.getNoStdlib());
+        k2JVMCompilerArguments2.setNoUnifiedNullChecks(k2JVMCompilerArguments.getNoUnifiedNullChecks());
+        String[] nullabilityAnnotations = k2JVMCompilerArguments.getNullabilityAnnotations();
+        k2JVMCompilerArguments2.setNullabilityAnnotations((String[]) Arrays.copyOf(nullabilityAnnotations, nullabilityAnnotations.length));
+        k2JVMCompilerArguments2.setOutputBuiltinsMetadata(k2JVMCompilerArguments.getOutputBuiltinsMetadata());
+        k2JVMCompilerArguments2.setProfileCompilerCommand(k2JVMCompilerArguments.getProfileCompilerCommand());
+        k2JVMCompilerArguments2.setSamConversions(k2JVMCompilerArguments.getSamConversions());
+        k2JVMCompilerArguments2.setSanitizeParentheses(k2JVMCompilerArguments.getSanitizeParentheses());
+        String[] scriptResolverEnvironment = k2JVMCompilerArguments.getScriptResolverEnvironment();
+        k2JVMCompilerArguments2.setScriptResolverEnvironment((String[]) Arrays.copyOf(scriptResolverEnvironment, scriptResolverEnvironment.length));
+        String[] scriptTemplates = k2JVMCompilerArguments.getScriptTemplates();
+        k2JVMCompilerArguments2.setScriptTemplates((String[]) Arrays.copyOf(scriptTemplates, scriptTemplates.length));
+        k2JVMCompilerArguments2.setStrictMetadataVersionSemantics(k2JVMCompilerArguments.getStrictMetadataVersionSemantics());
+        k2JVMCompilerArguments2.setStringConcat(k2JVMCompilerArguments.getStringConcat());
+        k2JVMCompilerArguments2.setSupportCompatqualCheckerFrameworkAnnotations(k2JVMCompilerArguments.getSupportCompatqualCheckerFrameworkAnnotations());
+        k2JVMCompilerArguments2.setSuppressDeprecatedJvmTargetWarning(k2JVMCompilerArguments.getSuppressDeprecatedJvmTargetWarning());
+        k2JVMCompilerArguments2.setSuppressMissingBuiltinsError(k2JVMCompilerArguments.getSuppressMissingBuiltinsError());
+        k2JVMCompilerArguments2.setTypeEnhancementImprovementsInStrictMode(k2JVMCompilerArguments.getTypeEnhancementImprovementsInStrictMode());
+        k2JVMCompilerArguments2.setUseFastJarFileSystem(k2JVMCompilerArguments.getUseFastJarFileSystem());
+        k2JVMCompilerArguments2.setUseInlineScopesNumbers(k2JVMCompilerArguments.getUseInlineScopesNumbers());
+        k2JVMCompilerArguments2.setUseOldClassFilesReading(k2JVMCompilerArguments.getUseOldClassFilesReading());
+        k2JVMCompilerArguments2.setUseOldInlineClassesManglingScheme(k2JVMCompilerArguments.getUseOldInlineClassesManglingScheme());
+        k2JVMCompilerArguments2.setUseTypeTable(k2JVMCompilerArguments.getUseTypeTable());
+        k2JVMCompilerArguments2.setValidateBytecode(k2JVMCompilerArguments.getValidateBytecode());
+        k2JVMCompilerArguments2.setValueClasses(k2JVMCompilerArguments.getValueClasses());
+        k2JVMCompilerArguments2.setWhenExpressionsGeneration(k2JVMCompilerArguments.getWhenExpressionsGeneration());
+        return k2JVMCompilerArguments2;
+    }
+}

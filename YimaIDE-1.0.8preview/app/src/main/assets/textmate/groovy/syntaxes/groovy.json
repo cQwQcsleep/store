@@ -1,0 +1,177 @@
+{
+	"name": "Groovy",
+	"scopeName": "source.groovy",
+	"patterns": [
+		{ "captures": { "1": { "name": "punctuation.definition.comment.groovy" } }, "match": "^(#!).+$\\n", "name": "comment.line.hashbang.groovy" },
+		{ "captures": { "1": { "name": "keyword.other.package.groovy" }, "2": { "name": "storage.modifier.package.groovy" }, "3": { "name": "punctuation.terminator.groovy" } }, "match": "^\\s*(package)\\b(?:\\s*([^ $;]+)\\s*(;)?)?", "name": "meta.package.groovy" },
+		{ "include": "#groovy" }
+	],
+	"repository": {
+		"annotations": {
+			"patterns": [
+				{ "match": "[@]\\w+", "name": "storage.type.annotation.groovy" }
+			]
+		},
+		"anonymous-classes-and-new": {
+			"begin": "\\bnew\\b",
+			"beginCaptures": { "0": { "name": "keyword.control.new.groovy" } },
+			"end": "(?<=\\))(?!\\s*\\{)|(?<=})|(?=;)|$",
+			"patterns": [
+				{ "include": "#object-types" },
+				{ "begin": "\\{", "end": "}", "name": "meta.inner-class.groovy", "patterns": [{ "include": "#class-body" }] }
+			]
+		},
+		"braces": {
+			"begin": "\\{", "end": "}", "patterns": [{ "include": "#groovy-code" }]
+		},
+		"class": {
+			"begin": "(?=\\w?[\\w\\s]*(?:class|interface|enum|trait)\\s+\\w+)",
+			"end": "}",
+			"endCaptures": { "0": { "name": "punctuation.section.class.end.groovy" } },
+			"name": "meta.definition.class.groovy",
+			"patterns": [
+				{ "include": "#storage-modifiers" },
+				{ "include": "#comments" },
+				{ "match": "(class|interface|enum|trait)\\s+(\\w+)", "captures": { "1": { "name": "storage.modifier.groovy" }, "2": { "name": "entity.name.type.class.groovy" } }, "name": "meta.class.identifier.groovy" },
+				{ "begin": "extends", "beginCaptures": { "0": { "name": "storage.modifier.extends.groovy" } }, "end": "(?=\\{|implements)", "patterns": [{ "include": "#object-types-inherited" }] },
+				{ "begin": "(implements)\\s", "beginCaptures": { "1": { "name": "storage.modifier.implements.groovy" } }, "end": "(?=\\s*extends|\\{)", "patterns": [{ "include": "#object-types-inherited" }] },
+				{ "begin": "\\{", "end": "(?=})", "name": "meta.class.body.groovy", "patterns": [{ "include": "#class-body" }] }
+			]
+		},
+		"class-body": {
+			"patterns": [
+				{ "include": "#constructors" },
+				{ "include": "#groovy" }
+			]
+		},
+		"closures": {
+			"begin": "\\{(?=.*?->)",
+			"end": "}",
+			"patterns": [
+				{ "begin": "(?<=\\{)(?=[^}]*?->)", "end": "->", "endCaptures": { "0": { "name": "keyword.operator.groovy" } }, "patterns": [{ "match": "(?=[^,->}]+)", "name": "variable.parameter.groovy" }] },
+				{ "begin": "(?=[^}])", "end": "(?=})", "patterns": [{ "include": "#groovy-code" }] }
+			]
+		},
+		"comment-block": {
+			"begin": "/\\*",
+			"captures": { "0": { "name": "punctuation.definition.comment.groovy" } },
+			"end": "\\*/",
+			"name": "comment.block.groovy"
+		},
+		"comments": {
+			"patterns": [
+				{ "match": "/\\*\\*/", "name": "comment.block.empty.groovy" },
+				{ "include": "#comment-block" },
+				{ "match": "(//).*$\\n?", "captures": { "1": { "name": "punctuation.definition.comment.groovy" } }, "name": "comment.line.double-slash.groovy" }
+			]
+		},
+		"constants": {
+			"patterns": [
+				{ "match": "\\b([A-Z][A-Z0-9_]+)\\b", "name": "constant.other.groovy" },
+				{ "match": "\\b(true|false|null)\\b", "name": "constant.language.groovy" },
+				{ "match": "\\b(this|super)\\b", "name": "variable.language.groovy" }
+			]
+		},
+		"constructors": {
+			"begin": "(?<=;|^)\\s*(?:(?:private|protected|public|static|final)\\s+)*([A-Z]\\w*)(?=\\s*\\()",
+			"beginCaptures": { "1": { "name": "entity.name.function.constructor.groovy" } },
+			"end": "(?<=\\))|$",
+			"patterns": [
+				{ "begin": "\\(", "end": "\\)", "patterns": [{ "include": "#groovy-code" }] }
+			]
+		},
+		"groovy": {
+			"patterns": [
+				{ "include": "#comments" },
+				{ "include": "#class" },
+				{ "include": "#methods" },
+				{ "include": "#annotations" },
+				{ "include": "#groovy-code" }
+			]
+		},
+		"groovy-code": {
+			"patterns": [
+				{ "include": "#comments" },
+				{ "include": "#annotations" },
+				{ "include": "#keyword-language" },
+				{ "include": "#values" },
+				{ "include": "#anonymous-classes-and-new" },
+				{ "include": "#keyword-operator" },
+				{ "include": "#types" },
+				{ "include": "#storage-modifiers" },
+				{ "include": "#closures" },
+				{ "include": "#braces" }
+			]
+		},
+		"keyword-language": {
+			"patterns": [
+				{ "match": "\\b(try|catch|finally|throw|throws)\\b", "name": "keyword.control.exception.groovy" },
+				{ "match": "\\b(return|break|continue|default|do|while|for|switch|if|else|case)\\b", "name": "keyword.control.groovy" },
+				{ "match": "\\b(assert)\\b", "name": "keyword.control.groovy" },
+				{ "match": "\\b(def|void|boolean|byte|char|short|int|long|float|double)\\b", "name": "storage.type.primitive.groovy" }
+			]
+		},
+		"keyword-operator": {
+			"patterns": [
+				{ "match": "\\b(as|in|instanceof)\\b", "name": "keyword.operator.groovy" },
+				{ "match": "\\.\\.|<{3}|>{3}|\\.\\.\\.", "name": "keyword.operator.groovy" },
+				{ "match": "\\?\\??\\.|\\*\\?|\\.\\*|\\*\\.", "name": "keyword.operator.groovy" },
+				{ "match": "->|=>", "name": "keyword.operator.groovy" },
+				{ "match": "[.+\\-*/%&|^~<>=!?:]+", "name": "keyword.operator.groovy" }
+			]
+		},
+		"methods": {
+			"patterns": [
+				{
+					"begin": "\\b(def)\\s+(\\w+)\\s*\\(",
+					"beginCaptures": { "1": { "name": "storage.type.def.groovy" }, "2": { "name": "entity.name.function.groovy" } },
+					"end": "(?<=\\))|$",
+					"patterns": [
+						{ "begin": "\\(", "end": "\\)", "patterns": [{ "include": "#groovy-code" }] }
+					]
+				}
+			]
+		},
+		"object-types": {
+			"patterns": [
+				{ "match": "\\b([A-Z]\\w*)\\b", "name": "storage.type.groovy" }
+			]
+		},
+		"object-types-inherited": {
+			"patterns": [
+				{ "match": "\\b([A-Z]\\w*)\\b", "name": "entity.other.inherited-class.groovy" }
+			]
+		},
+		"storage-modifiers": {
+			"patterns": [
+				{ "match": "\\b(private|protected|public|static|final|abstract|synchronized|transient|volatile|native|strictfp)\\b", "name": "storage.modifier.groovy" }
+			]
+		},
+		"support-functions": {
+			"patterns": [
+				{ "match": "\\b(print|println|printf|sprintf|each|collect|find|findAll|grep|sort|eachWithIndex|with|tap)\\b", "name": "support.function.groovy" }
+			]
+		},
+		"types": {
+			"patterns": [
+				{ "match": "\\b(?:String|Integer|Long|Float|Double|Boolean|Byte|Short|Character|BigInteger|BigDecimal|Object|Class|List|Map|Set|Date|Closure)\\b", "name": "support.class.groovy" }
+			]
+		},
+		"values": {
+			"patterns": [
+				{ "match": "\\b[0-9]+(?:\\.[0-9]+)?(?:[eE][+\\-]?[0-9]+)?[fFdD]?\\b", "name": "constant.numeric.groovy" },
+				{ "include": "#constants" },
+				{ "include": "#strings" }
+			]
+		},
+		"strings": {
+			"patterns": [
+				{ "begin": "\"\"\"", "end": "\"\"\"", "name": "string.quoted.double.triple.groovy" },
+				{ "begin": "'''", "end": "'''", "name": "string.quoted.single.triple.groovy" },
+				{ "begin": "\"", "end": "\"", "name": "string.quoted.double.groovy", "patterns": [{ "match": "\\\\[btnfr\"'\\\\]|\\\\u[0-9a-fA-F]{4}", "name": "constant.character.escape.groovy" }, { "match": "\\$\\{", "name": "punctuation.section.embedded.groovy" }] },
+				{ "begin": "'", "end": "'", "name": "string.quoted.single.groovy", "patterns": [{ "match": "\\\\[btnfr\"'\\\\]", "name": "constant.character.escape.groovy" }] },
+				{ "begin": "/", "end": "/[gim]*", "name": "string.regexp.groovy", "patterns": [{ "match": "\\\\[\\/]", "name": "constant.character.escape.groovy" }] }
+			]
+		}
+	}
+}

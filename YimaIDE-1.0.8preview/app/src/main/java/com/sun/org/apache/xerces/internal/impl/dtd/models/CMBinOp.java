@@ -1,0 +1,71 @@
+package com.sun.org.apache.xerces.internal.impl.dtd.models;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes7.dex */
+public class CMBinOp extends CMNode {
+    private CMNode fLeftChild;
+    private CMNode fRightChild;
+
+    public CMBinOp(int i, CMNode cMNode, CMNode cMNode2) {
+        super(i);
+        if (type() != 4 && type() != 5) {
+            f63.a("ImplementationMessages.VAL_BST");
+            throw null;
+        }
+        this.fLeftChild = cMNode;
+        this.fRightChild = cMNode2;
+    }
+
+    @Override // com.sun.org.apache.xerces.internal.impl.dtd.models.CMNode
+    public void calcFirstPos(CMStateSet cMStateSet) {
+        if (type() == 4) {
+            cMStateSet.setTo(this.fLeftChild.firstPos());
+            cMStateSet.union(this.fRightChild.firstPos());
+        } else {
+            if (type() != 5) {
+                f63.a("ImplementationMessages.VAL_BST");
+                return;
+            }
+            cMStateSet.setTo(this.fLeftChild.firstPos());
+            if (this.fLeftChild.isNullable()) {
+                cMStateSet.union(this.fRightChild.firstPos());
+            }
+        }
+    }
+
+    @Override // com.sun.org.apache.xerces.internal.impl.dtd.models.CMNode
+    public void calcLastPos(CMStateSet cMStateSet) {
+        if (type() == 4) {
+            cMStateSet.setTo(this.fLeftChild.lastPos());
+            cMStateSet.union(this.fRightChild.lastPos());
+        } else {
+            if (type() != 5) {
+                f63.a("ImplementationMessages.VAL_BST");
+                return;
+            }
+            cMStateSet.setTo(this.fRightChild.lastPos());
+            if (this.fRightChild.isNullable()) {
+                cMStateSet.union(this.fLeftChild.lastPos());
+            }
+        }
+    }
+
+    public final CMNode getLeft() {
+        return this.fLeftChild;
+    }
+
+    public final CMNode getRight() {
+        return this.fRightChild;
+    }
+
+    @Override // com.sun.org.apache.xerces.internal.impl.dtd.models.CMNode
+    public boolean isNullable() {
+        if (type() == 4) {
+            return this.fLeftChild.isNullable() || this.fRightChild.isNullable();
+        }
+        if (type() == 5) {
+            return this.fLeftChild.isNullable() && this.fRightChild.isNullable();
+        }
+        f63.a("ImplementationMessages.VAL_BST");
+        return false;
+    }
+}

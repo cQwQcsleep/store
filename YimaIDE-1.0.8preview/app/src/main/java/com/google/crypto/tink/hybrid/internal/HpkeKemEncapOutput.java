@@ -1,0 +1,20 @@
+package com.google.crypto.tink.hybrid.internal;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes6.dex */
+final class HpkeKemEncapOutput {
+    private final byte[] encapsulatedKey;
+    private final byte[] sharedSecret;
+
+    public HpkeKemEncapOutput(byte[] bArr, byte[] bArr2) {
+        this.sharedSecret = bArr;
+        this.encapsulatedKey = bArr2;
+    }
+
+    public byte[] getEncapsulatedKey() {
+        return this.encapsulatedKey;
+    }
+
+    public byte[] getSharedSecret() {
+        return this.sharedSecret;
+    }
+}

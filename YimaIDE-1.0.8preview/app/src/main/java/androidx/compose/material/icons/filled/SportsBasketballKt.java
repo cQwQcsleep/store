@@ -1,0 +1,127 @@
+package androidx.compose.material.icons.filled;
+
+import androidx.compose.material.icons.Icons;
+import androidx.compose.ui.graphics.Brush;
+import androidx.compose.ui.graphics.Color;
+import androidx.compose.ui.graphics.SolidColor;
+import androidx.compose.ui.graphics.StrokeCap;
+import androidx.compose.ui.graphics.StrokeJoin;
+import androidx.compose.ui.graphics.vector.ImageVector;
+import androidx.compose.ui.graphics.vector.PathBuilder;
+import androidx.compose.ui.graphics.vector.VectorKt;
+import androidx.compose.ui.unit.Dp;
+import kotlin.Metadata;
+import kotlin.jvm.internal.DefaultConstructorMarker;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes.dex */
+@Metadata(d1 = {"\u0000\u0010\n\u0000\n\u0002\u0018\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\"\u0010\u0010\u0000\u001a\u0004\u0018\u00010\u0001X\u0082\u000e¢\u0006\u0002\n\u0000\"\u0015\u0010\u0002\u001a\u00020\u0001*\u00020\u00038F¢\u0006\u0006\u001a\u0004\b\u0004\u0010\u0005¨\u0006\u0006"}, d2 = {"_sportsBasketball", "Landroidx/compose/ui/graphics/vector/ImageVector;", "SportsBasketball", "Landroidx/compose/material/icons/Icons$Filled;", "getSportsBasketball", "(Landroidx/compose/material/icons/Icons$Filled;)Landroidx/compose/ui/graphics/vector/ImageVector;", "material-icons-extended_release"}, k = 2, mv = {1, 8, 0}, xi = 48)
+public final class SportsBasketballKt {
+    private static ImageVector _sportsBasketball;
+
+    public static final ImageVector getSportsBasketball(Icons.Filled filled) {
+        ImageVector imageVector = _sportsBasketball;
+        if (imageVector != null) {
+            imageVector.getClass();
+            return imageVector;
+        }
+        ImageVector.Builder builder = new ImageVector.Builder("Filled.SportsBasketball", Dp.constructor-impl(24.0f), Dp.constructor-impl(24.0f), 24.0f, 24.0f, 0L, 0, false, 96, (DefaultConstructorMarker) null);
+        int defaultFillType = VectorKt.getDefaultFillType();
+        Color.Companion companion = Color.Companion;
+        SolidColor solidColor = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        StrokeCap.Companion companion2 = StrokeCap.Companion;
+        int i = companion2.getButt-KaPHkGw();
+        StrokeJoin.Companion companion3 = StrokeJoin.Companion;
+        int i2 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder = new PathBuilder();
+        pathBuilder.moveTo(17.09f, 11.0f);
+        pathBuilder.horizontalLineToRelative(4.86f);
+        pathBuilder.curveToRelative(-0.16f, -1.61f, -0.71f, -3.11f, -1.54f, -4.4f);
+        pathBuilder.curveTo(18.68f, 7.43f, 17.42f, 9.05f, 17.09f, 11.0f);
+        pathBuilder.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder.getNodes(), defaultFillType, "", solidColor, 1.0f, (Brush) null, 1.0f, 1.0f, i, i2, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType2 = VectorKt.getDefaultFillType();
+        SolidColor solidColor2 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i3 = companion2.getButt-KaPHkGw();
+        int i4 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder2 = new PathBuilder();
+        pathBuilder2.moveTo(6.91f, 11.0f);
+        pathBuilder2.curveTo(6.58f, 9.05f, 5.32f, 7.43f, 3.59f, 6.6f);
+        pathBuilder2.curveTo(2.76f, 7.89f, 2.21f, 9.39f, 2.05f, 11.0f);
+        pathBuilder2.horizontalLineTo(6.91f);
+        pathBuilder2.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder2.getNodes(), defaultFillType2, "", solidColor2, 1.0f, (Brush) null, 1.0f, 1.0f, i3, i4, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType3 = VectorKt.getDefaultFillType();
+        SolidColor solidColor3 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i5 = companion2.getButt-KaPHkGw();
+        int i6 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder3 = new PathBuilder();
+        pathBuilder3.moveTo(15.07f, 11.0f);
+        pathBuilder3.curveToRelative(0.32f, -2.59f, 1.88f, -4.79f, 4.06f, -6.0f);
+        pathBuilder3.curveToRelative(-1.6f, -1.63f, -3.74f, -2.71f, -6.13f, -2.95f);
+        pathBuilder3.verticalLineTo(11.0f);
+        pathBuilder3.horizontalLineTo(15.07f);
+        pathBuilder3.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder3.getNodes(), defaultFillType3, "", solidColor3, 1.0f, (Brush) null, 1.0f, 1.0f, i5, i6, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType4 = VectorKt.getDefaultFillType();
+        SolidColor solidColor4 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i7 = companion2.getButt-KaPHkGw();
+        int i8 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder4 = new PathBuilder();
+        pathBuilder4.moveTo(8.93f, 11.0f);
+        pathBuilder4.horizontalLineTo(11.0f);
+        pathBuilder4.verticalLineTo(2.05f);
+        pathBuilder4.curveTo(8.61f, 2.29f, 6.46f, 3.37f, 4.87f, 5.0f);
+        pathBuilder4.curveTo(7.05f, 6.21f, 8.61f, 8.41f, 8.93f, 11.0f);
+        pathBuilder4.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder4.getNodes(), defaultFillType4, "", solidColor4, 1.0f, (Brush) null, 1.0f, 1.0f, i7, i8, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType5 = VectorKt.getDefaultFillType();
+        SolidColor solidColor5 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i9 = companion2.getButt-KaPHkGw();
+        int i10 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder5 = new PathBuilder();
+        pathBuilder5.moveTo(15.07f, 13.0f);
+        pathBuilder5.horizontalLineTo(13.0f);
+        pathBuilder5.verticalLineToRelative(8.95f);
+        pathBuilder5.curveToRelative(2.39f, -0.24f, 4.54f, -1.32f, 6.13f, -2.95f);
+        pathBuilder5.curveTo(16.95f, 17.79f, 15.39f, 15.59f, 15.07f, 13.0f);
+        pathBuilder5.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder5.getNodes(), defaultFillType5, "", solidColor5, 1.0f, (Brush) null, 1.0f, 1.0f, i9, i10, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType6 = VectorKt.getDefaultFillType();
+        SolidColor solidColor6 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i11 = companion2.getButt-KaPHkGw();
+        int i12 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder6 = new PathBuilder();
+        pathBuilder6.moveTo(3.59f, 17.4f);
+        pathBuilder6.curveToRelative(1.72f, -0.83f, 2.99f, -2.46f, 3.32f, -4.4f);
+        pathBuilder6.horizontalLineTo(2.05f);
+        pathBuilder6.curveTo(2.21f, 14.61f, 2.76f, 16.11f, 3.59f, 17.4f);
+        pathBuilder6.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder6.getNodes(), defaultFillType6, "", solidColor6, 1.0f, (Brush) null, 1.0f, 1.0f, i11, i12, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType7 = VectorKt.getDefaultFillType();
+        SolidColor solidColor7 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i13 = companion2.getButt-KaPHkGw();
+        int i14 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder7 = new PathBuilder();
+        pathBuilder7.moveTo(17.09f, 13.0f);
+        pathBuilder7.curveToRelative(0.33f, 1.95f, 1.59f, 3.57f, 3.32f, 4.4f);
+        pathBuilder7.curveToRelative(0.83f, -1.29f, 1.38f, -2.79f, 1.54f, -4.4f);
+        pathBuilder7.horizontalLineTo(17.09f);
+        pathBuilder7.close();
+        ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder7.getNodes(), defaultFillType7, "", solidColor7, 1.0f, (Brush) null, 1.0f, 1.0f, i13, i14, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null);
+        int defaultFillType8 = VectorKt.getDefaultFillType();
+        SolidColor solidColor8 = new SolidColor(companion.getBlack-0d7_KjU(), (DefaultConstructorMarker) null);
+        int i15 = companion2.getButt-KaPHkGw();
+        int i16 = companion3.getBevel-LxFBmk8();
+        PathBuilder pathBuilder8 = new PathBuilder();
+        pathBuilder8.moveTo(8.93f, 13.0f);
+        pathBuilder8.curveToRelative(-0.32f, 2.59f, -1.88f, 4.79f, -4.06f, 6.0f);
+        pathBuilder8.curveToRelative(1.6f, 1.63f, 3.74f, 2.71f, 6.13f, 2.95f);
+        pathBuilder8.verticalLineTo(13.0f);
+        pathBuilder8.horizontalLineTo(8.93f);
+        pathBuilder8.close();
+        ImageVector imageVectorBuild = ImageVector.Builder.addPath-oIyEayM$default(builder, pathBuilder8.getNodes(), defaultFillType8, "", solidColor8, 1.0f, (Brush) null, 1.0f, 1.0f, i15, i16, 1.0f, 0.0f, 0.0f, 0.0f, 14336, (Object) null).build();
+        _sportsBasketball = imageVectorBuild;
+        imageVectorBuild.getClass();
+        return imageVectorBuild;
+    }
+}

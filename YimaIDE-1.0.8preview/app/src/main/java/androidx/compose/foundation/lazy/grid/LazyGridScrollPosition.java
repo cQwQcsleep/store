@@ -1,0 +1,113 @@
+package androidx.compose.foundation.lazy.grid;
+
+import androidx.compose.foundation.internal.InlineClassHelperKt;
+import androidx.compose.foundation.lazy.layout.LazyLayoutItemProviderKt;
+import androidx.compose.foundation.lazy.layout.LazyLayoutNearestRangeState;
+import androidx.compose.runtime.MutableIntState;
+import androidx.compose.runtime.SnapshotIntStateKt;
+import kotlin.Metadata;
+import kotlin.collections.ArraysKt;
+import kotlin.jvm.internal.DefaultConstructorMarker;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes.dex */
+@Metadata(d1 = {"\u00008\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0000\n\u0002\u0010\b\n\u0002\b\u0010\n\u0002\u0010\u000b\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0010\u0002\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0004\n\u0002\u0018\u0002\n\u0002\b\u0002\b\u0001\u0018\u00002\u00020\u0001B\u001b\u0012\b\b\u0002\u0010\u0002\u001a\u00020\u0003\u0012\b\b\u0002\u0010\u0004\u001a\u00020\u0003¢\u0006\u0004\b\u0005\u0010\u0006J\u000e\u0010\u001a\u001a\u00020\u001b2\u0006\u0010\u001c\u001a\u00020\u001dJ\u000e\u0010\u001e\u001a\u00020\u001b2\u0006\u0010\u000f\u001a\u00020\u0003J\u0016\u0010\u001f\u001a\u00020\u001b2\u0006\u0010\b\u001a\u00020\u00032\u0006\u0010\u000f\u001a\u00020\u0003J\u0016\u0010 \u001a\u00020\u00032\u0006\u0010!\u001a\u00020\"2\u0006\u0010\b\u001a\u00020\u0003J\u0018\u0010#\u001a\u00020\u001b2\u0006\u0010\b\u001a\u00020\u00032\u0006\u0010\u000f\u001a\u00020\u0003H\u0002R+\u0010\b\u001a\u00020\u00032\u0006\u0010\u0007\u001a\u00020\u00038F@BX\u0086\u008e\u0002¢\u0006\u0012\n\u0004\b\r\u0010\u000e\u001a\u0004\b\t\u0010\n\"\u0004\b\u000b\u0010\fR+\u0010\u000f\u001a\u00020\u00032\u0006\u0010\u0007\u001a\u00020\u00038F@BX\u0086\u008e\u0002¢\u0006\u0012\n\u0004\b\u0012\u0010\u000e\u001a\u0004\b\u0010\u0010\n\"\u0004\b\u0011\u0010\fR\u000e\u0010\u0013\u001a\u00020\u0014X\u0082\u000e¢\u0006\u0002\n\u0000R\u0010\u0010\u0015\u001a\u0004\u0018\u00010\u0001X\u0082\u000e¢\u0006\u0002\n\u0000R\u0011\u0010\u0016\u001a\u00020\u0017¢\u0006\b\n\u0000\u001a\u0004\b\u0018\u0010\u0019¨\u0006$"}, d2 = {"Landroidx/compose/foundation/lazy/grid/LazyGridScrollPosition;", "", "initialIndex", "", "initialScrollOffset", "<init>", "(II)V", "<set-?>", "index", "getIndex", "()I", "setIndex", "(I)V", "index$delegate", "Landroidx/compose/runtime/MutableIntState;", "scrollOffset", "getScrollOffset", "setScrollOffset", "scrollOffset$delegate", "hadFirstNotEmptyLayout", "", "lastKnownFirstItemKey", "nearestRangeState", "Landroidx/compose/foundation/lazy/layout/LazyLayoutNearestRangeState;", "getNearestRangeState", "()Landroidx/compose/foundation/lazy/layout/LazyLayoutNearestRangeState;", "updateFromMeasureResult", "", "measureResult", "Landroidx/compose/foundation/lazy/grid/LazyGridMeasureResult;", "updateScrollOffset", "requestPositionAndForgetLastKnownKey", "updateScrollPositionIfTheFirstItemWasMoved", "itemProvider", "Landroidx/compose/foundation/lazy/grid/LazyGridItemProvider;", "update", "foundation"}, k = 1, mv = {2, 0, 0}, xi = 48)
+public final class LazyGridScrollPosition {
+    public static final int $stable = 8;
+    private boolean hadFirstNotEmptyLayout;
+
+    /* JADX INFO: renamed from: index$delegate, reason: from kotlin metadata */
+    private final MutableIntState index;
+    private Object lastKnownFirstItemKey;
+    private final LazyLayoutNearestRangeState nearestRangeState;
+
+    /* JADX INFO: renamed from: scrollOffset$delegate, reason: from kotlin metadata */
+    private final MutableIntState scrollOffset;
+
+    public LazyGridScrollPosition(int i, int i2) {
+        this.index = SnapshotIntStateKt.mutableIntStateOf(i);
+        this.scrollOffset = SnapshotIntStateKt.mutableIntStateOf(i2);
+        this.nearestRangeState = new LazyLayoutNearestRangeState(i, 90, 200);
+    }
+
+    private final void setIndex(int i) {
+        this.index.setIntValue(i);
+    }
+
+    private final void setScrollOffset(int i) {
+        this.scrollOffset.setIntValue(i);
+    }
+
+    private final void update(int index, int scrollOffset) {
+        if (!(((float) index) >= 0.0f)) {
+            InlineClassHelperKt.throwIllegalArgumentException("Index should be non-negative");
+        }
+        setIndex(index);
+        this.nearestRangeState.update(index);
+        setScrollOffset(scrollOffset);
+    }
+
+    public final int getIndex() {
+        return this.index.getIntValue();
+    }
+
+    public final LazyLayoutNearestRangeState getNearestRangeState() {
+        return this.nearestRangeState;
+    }
+
+    public final int getScrollOffset() {
+        return this.scrollOffset.getIntValue();
+    }
+
+    public final void requestPositionAndForgetLastKnownKey(int index, int scrollOffset) {
+        update(index, scrollOffset);
+        this.lastKnownFirstItemKey = null;
+    }
+
+    public final void updateFromMeasureResult(LazyGridMeasureResult measureResult) {
+        LazyGridMeasuredItem[] items;
+        LazyGridMeasuredItem lazyGridMeasuredItem;
+        LazyGridMeasuredItem[] items2;
+        LazyGridMeasuredItem lazyGridMeasuredItem2;
+        LazyGridMeasuredLine firstVisibleLine = measureResult.getFirstVisibleLine();
+        this.lastKnownFirstItemKey = (firstVisibleLine == null || (items2 = firstVisibleLine.getItems()) == null || (lazyGridMeasuredItem2 = (LazyGridMeasuredItem) ArraysKt.firstOrNull(items2)) == null) ? null : lazyGridMeasuredItem2.getKey();
+        if (this.hadFirstNotEmptyLayout || measureResult.getTotalItemsCount() > 0) {
+            this.hadFirstNotEmptyLayout = true;
+            int firstVisibleLineScrollOffset = measureResult.getFirstVisibleLineScrollOffset();
+            int index = 0;
+            if (!(((float) firstVisibleLineScrollOffset) >= 0.0f)) {
+                InlineClassHelperKt.throwIllegalStateException("scrollOffset should be non-negative (" + firstVisibleLineScrollOffset + ')');
+            }
+            LazyGridMeasuredLine firstVisibleLine2 = measureResult.getFirstVisibleLine();
+            if (firstVisibleLine2 != null && (items = firstVisibleLine2.getItems()) != null && (lazyGridMeasuredItem = (LazyGridMeasuredItem) ArraysKt.firstOrNull(items)) != null) {
+                index = lazyGridMeasuredItem.getIndex();
+            }
+            update(index, firstVisibleLineScrollOffset);
+        }
+    }
+
+    public final void updateScrollOffset(int scrollOffset) {
+        if (!(((float) scrollOffset) >= 0.0f)) {
+            InlineClassHelperKt.throwIllegalStateException("scrollOffset should be non-negative");
+        }
+        setScrollOffset(scrollOffset);
+    }
+
+    public final int updateScrollPositionIfTheFirstItemWasMoved(LazyGridItemProvider itemProvider, int index) {
+        int iFindIndexByKey = LazyLayoutItemProviderKt.findIndexByKey(itemProvider, this.lastKnownFirstItemKey, index);
+        if (index != iFindIndexByKey) {
+            setIndex(iFindIndexByKey);
+            this.nearestRangeState.update(index);
+        }
+        return iFindIndexByKey;
+    }
+
+    /* JADX WARN: Illegal instructions before constructor call */
+    public LazyGridScrollPosition() {
+        int i = 0;
+        this(i, i, 3, null);
+    }
+
+    public /* synthetic */ LazyGridScrollPosition(int i, int i2, int i3, DefaultConstructorMarker defaultConstructorMarker) {
+        this((i3 & 1) != 0 ? 0 : i, (i3 & 2) != 0 ? 0 : i2);
+    }
+}

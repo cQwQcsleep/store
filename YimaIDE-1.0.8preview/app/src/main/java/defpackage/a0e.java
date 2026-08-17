@@ -1,0 +1,19 @@
+package defpackage;
+
+import com.android.tools.r8.graph.A4;
+import com.android.tools.r8.graph.I2;
+import java.util.function.Consumer;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes5.dex */
+public final /* synthetic */ class a0e implements Consumer {
+    public final /* synthetic */ A4 b;
+
+    public /* synthetic */ a0e(A4 a4) {
+        this.b = a4;
+    }
+
+    @Override // java.util.function.Consumer
+    public final void accept(Object obj) {
+        this.b.a((I2) obj);
+    }
+}

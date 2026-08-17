@@ -1,0 +1,13 @@
+package kotlin.reflect.jvm.internal.impl.renderer;
+
+import kotlin.enums.EnumEntries;
+import kotlin.enums.EnumEntriesKt;
+
+/* JADX INFO: loaded from: /workspace/dex_all/classes9.dex */
+public enum ParameterNameRenderingPolicy {
+    ALL,
+    ONLY_NON_SYNTHESIZED,
+    NONE;
+
+    private static final /* synthetic */ EnumEntries $ENTRIES = EnumEntriesKt.enumEntries(values());
+}

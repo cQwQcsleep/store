@@ -1,0 +1,324 @@
+{
+	"information_for_contributors": [
+		"This file is based on https://github.com/textmate/javascript.tmbundle/blob/master/Syntaxes/JavaScript.plist"
+	],
+	"name": "JavaScript",
+	"scopeName": "source.js",
+	"patterns": [
+		{ "include": "#comment" },
+		{ "include": "#string" },
+		{ "include": "#template" },
+		{ "include": "#literal" },
+		{ "include": "#declaration" },
+		{ "include": "#keyword" },
+		{ "include": "#function-call" },
+		{ "include": "#operator" },
+		{ "include": "#punctuation" },
+		{ "include": "#bracket" },
+		{ "include": "#arrow-function" }
+	],
+	"repository": {
+		"arrow-function": {
+			"patterns": [
+				{
+					"match": "=>",
+					"name": "storage.type.function.arrow.js"
+				}
+			]
+		},
+		"bracket": {
+			"patterns": [
+				{
+					"match": "\\{",
+					"name": "punctuation.definition.block.begin.bracket.curly.js"
+				},
+				{
+					"match": "\\}",
+					"name": "punctuation.definition.block.end.bracket.curly.js"
+				},
+				{
+					"match": "\\[",
+					"name": "punctuation.definition.array.begin.bracket.square.js"
+				},
+				{
+					"match": "\\]",
+					"name": "punctuation.definition.array.end.bracket.square.js"
+				},
+				{
+					"match": "\\(",
+					"name": "punctuation.definition.parameters.begin.bracket.round.js"
+				},
+				{
+					"match": "\\)",
+					"name": "punctuation.definition.parameters.end.bracket.round.js"
+				}
+			]
+		},
+		"comment": {
+			"patterns": [
+				{
+					"name": "comment.block.documentation.js",
+					"begin": "/\\*\\*",
+					"end": "\\*/",
+					"patterns": [
+						{
+							"match": "@(param|arg|argument|return|returns|type|typedef|property|prop|callback|template|default|see|link|example|deprecated|ignore|internal|public|private|protected|readonly|abstract|virtual|async|await|generator|fires|emits|listens|todo|fixme|author|since|version|license|copyright)\\b",
+							"name": "storage.type.class.jsdoc"
+						}
+					]
+				},
+				{
+					"name": "comment.block.js",
+					"begin": "/\\*",
+					"end": "\\*/"
+				},
+				{
+					"match": "(//).*$\\n?",
+					"name": "comment.line.double-slash.js"
+				}
+			]
+		},
+		"declaration": {
+			"patterns": [
+				{
+					"match": "\\b(const|let|var)\\b",
+					"name": "storage.type.js"
+				},
+				{
+					"match": "\\b(function)\\b",
+					"name": "storage.type.function.js"
+				},
+				{
+					"match": "\\b(class|extends|new)\\b",
+					"name": "storage.type.class.js"
+				},
+				{
+					"match": "\\b(import|from|export|default|as)\\b",
+					"name": "keyword.control.import.js"
+				},
+				{
+					"match": "\\b(try|catch|finally|throw)\\b",
+					"name": "keyword.control.trycatch.js"
+				},
+				{
+					"match": "\\b(typeof|instanceof|in|of)\\b",
+					"name": "keyword.operator.js"
+				}
+			]
+		},
+		"function-call": {
+			"patterns": [
+				{
+					"match": "\\b([a-zA-Z_$][\\w$]*)\\s*(?=\\()",
+					"captures": {
+						"1": { "name": "entity.name.function.js" }
+					}
+				},
+				{
+					"match": "\\b(console)\\s*(\\.)\\s*(log|warn|error|info|debug|dir|table|time|timeEnd|group|groupEnd)\\b",
+					"captures": {
+						"1": { "name": "support.class.console.js" },
+						"2": { "name": "punctuation.accessor.js" },
+						"3": { "name": "support.function.console.js" }
+					}
+				},
+				{
+					"match": "\\b(document|window|navigator|history|location|localStorage|sessionStorage)\\b",
+					"name": "support.object.dom.js"
+				},
+				{
+					"match": "\\b(Math|JSON|Promise|Array|Object|String|Number|Boolean|Map|Set|WeakMap|WeakSet|Symbol|RegExp|Date|Error|TypeError|RangeError|SyntaxError|ReferenceError|URIError|EvalError|Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|Float32Array|Float64Array|ArrayBuffer|DataView|Proxy|Reflect)\\b",
+					"name": "support.class.builtin.js"
+				},
+				{
+					"match": "\\b(parseInt|parseFloat|isNaN|isFinite|encodeURI|decodeURI|encodeURIComponent|decodeURIComponent|eval|require|module|exports|__dirname|__filename|process|global|Buffer)\\b",
+					"name": "support.function.builtin.js"
+				}
+			]
+		},
+		"keyword": {
+			"patterns": [
+				{
+					"match": "\\b(if|else)\\b",
+					"name": "keyword.control.conditional.js"
+				},
+				{
+					"match": "\\b(for|while|do|break|continue)\\b",
+					"name": "keyword.control.loop.js"
+				},
+				{
+					"match": "\\b(switch|case|default)\\b",
+					"name": "keyword.control.switch.js"
+				},
+				{
+					"match": "\\b(return|yield)\\b",
+					"name": "keyword.control.flow.js"
+				},
+				{
+					"match": "\\b(this|super)\\b",
+					"name": "variable.language.js"
+				},
+				{
+					"match": "\\b(true|false|null|undefined|NaN|Infinity)\\b",
+					"name": "constant.language.js"
+				},
+				{
+					"match": "\\b(async|await)\\b",
+					"name": "storage.modifier.async.js"
+				},
+				{
+					"match": "\\b(static|get|set)\\b",
+					"name": "storage.modifier.js"
+				},
+				{
+					"match": "\\b(void|delete)\\b",
+					"name": "keyword.operator.js"
+				}
+			]
+		},
+		"literal": {
+			"patterns": [
+				{
+					"match": "\\b[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b",
+					"name": "constant.numeric.js"
+				},
+				{
+					"match": "\\b0[xX][0-9a-fA-F]+\\b",
+					"name": "constant.numeric.hex.js"
+				},
+				{
+					"match": "\\b0[oO][0-7]+\\b",
+					"name": "constant.numeric.octal.js"
+				},
+				{
+					"match": "\\b0[bB][01]+\\b",
+					"name": "constant.numeric.binary.js"
+				},
+				{
+					"match": "\\b(undefined)\\b",
+					"name": "constant.language.undefined.js"
+				}
+			]
+		},
+		"operator": {
+			"patterns": [
+				{
+					"match": "===|!==|==|!=",
+					"name": "keyword.operator.comparison.js"
+				},
+				{
+					"match": "&&|\\|\\||\\?\\?",
+					"name": "keyword.operator.logical.js"
+				},
+				{
+					"match": "<<|>>>|>>|&|\\||\\^|~",
+					"name": "keyword.operator.bitwise.js"
+				},
+				{
+					"match": "<=|>=|<|>",
+					"name": "keyword.operator.relational.js"
+				},
+				{
+					"match": "\\+\\+|--|\\+|-|\\*|/|%",
+					"name": "keyword.operator.arithmetic.js"
+				},
+				{
+					"match": "=|\\+=|-=|\\*=|/=|%=|<<=|>>=|>>>=|&=|\\|=|\\^=",
+					"name": "keyword.operator.assignment.js"
+				},
+				{
+					"match": "\\.\\.\\.",
+					"name": "keyword.operator.spread.js"
+				},
+				{
+					"match": "\\?",
+					"name": "keyword.operator.ternary.js"
+				}
+			]
+		},
+		"punctuation": {
+			"patterns": [
+				{
+					"match": ";",
+					"name": "punctuation.terminator.statement.js"
+				},
+				{
+					"match": ",",
+					"name": "punctuation.separator.comma.js"
+				},
+				{
+					"match": "\\.",
+					"name": "punctuation.accessor.js"
+				},
+				{
+					"match": ":",
+					"name": "punctuation.separator.key-value.js"
+				}
+			]
+		},
+		"string": {
+			"patterns": [
+				{
+					"name": "string.quoted.double.js",
+					"begin": "\"",
+					"end": "\"",
+					"patterns": [
+						{
+							"match": "\\\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|u\\{[0-9a-fA-F]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.)",
+							"name": "constant.character.escape.js"
+						}
+					]
+				},
+				{
+					"name": "string.quoted.single.js",
+					"begin": "'",
+					"end": "'",
+					"patterns": [
+						{
+							"match": "\\\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|u\\{[0-9a-fA-F]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.)",
+							"name": "constant.character.escape.js"
+						}
+					]
+				}
+			]
+		},
+		"template": {
+			"patterns": [
+				{
+					"name": "string.template.js",
+					"begin": "`",
+					"end": "`",
+					"patterns": [
+						{
+							"begin": "\\$\\{",
+							"beginCaptures": {
+								"0": { "name": "punctuation.definition.template-expression.begin.js" }
+							},
+							"end": "\\}",
+							"endCaptures": {
+								"0": { "name": "punctuation.definition.template-expression.end.js" }
+							},
+							"name": "meta.template.expression.js",
+							"patterns": [
+								{ "include": "#comment" },
+								{ "include": "#string" },
+								{ "include": "#literal" },
+								{ "include": "#declaration" },
+								{ "include": "#keyword" },
+								{ "include": "#function-call" },
+								{ "include": "#operator" },
+								{ "include": "#punctuation" },
+								{ "include": "#bracket" },
+								{ "include": "#arrow-function" }
+							]
+						},
+						{
+							"match": "\\\\.",
+							"name": "constant.character.escape.js"
+						}
+					]
+				}
+			]
+		}
+	}
+}
