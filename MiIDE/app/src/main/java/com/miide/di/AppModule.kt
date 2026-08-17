@@ -18,6 +18,7 @@ import com.miide.core.network.ProviderFactory
 import com.miide.core.network.ProviderGateway
 import com.miide.core.network.RetryPolicy
 import com.miide.core.network.UsageSink
+import com.miide.core.network.ContextCache
 import com.miide.core.runtime.DefaultRuntimes
 import com.miide.core.runtime.RuntimeRegistry
 import com.miide.runtime.PythonRuntime
@@ -112,11 +113,16 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideContextCache(): ContextCache = ContextCache()
+
+    @Provides
+    @Singleton
     fun provideProviderGateway(
         factory: ProviderFactory,
         retry: RetryPolicy,
-        usageSink: UsageSink
-    ): ProviderGateway = ProviderGateway(factory, retry, usageSink)
+        usageSink: UsageSink,
+        contextCache: ContextCache
+    ): ProviderGateway = ProviderGateway(factory, retry, usageSink, contextCache)
 
     @Provides
     @Singleton

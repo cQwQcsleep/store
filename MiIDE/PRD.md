@@ -66,7 +66,7 @@
 - [x] 内置精简运行时：Python（Chaquopy）+ JS（QuickJS）+ Lua（LuaJ），Ruby/C 等评估后扩展
 - [x] 内置虚拟终端（Termux terminal-view/emulator + 沙箱 shell 子进程）
 - [x] AI 生成代码「一键运行」闭环
-- [ ] 上下文缓存 / 提示词缓存优化（提升缓存命中率）
+- [x] 上下文缓存 / 提示词缓存优化（客户端 LRU 精确匹配缓存，TTL 自动过期）
 - [ ] **内置浏览器**（四项能力）：
   - 网页实时预览：编辑 HTML/CSS/JS 时分屏/面板实时渲染；
   - 通用浏览器标签：多标签浏览文档 / 搜索 / 打开链接；

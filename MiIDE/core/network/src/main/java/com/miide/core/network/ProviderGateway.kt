@@ -14,13 +14,25 @@ import kotlinx.coroutines.delay
 class ProviderGateway(
     private val factory: ProviderFactory,
     private val retryPolicy: RetryPolicy,
-    private val usageSink: UsageSink
+    private val usageSink: UsageSink,
+    private val contextCache: ContextCache = ContextCache()
 ) {
     suspend fun chat(
         provider: ProviderConfig,
         request: ProviderRequest,
-        onEvent: suspend (ProviderEvent) -> Unit
+        onEvent: suspend (ProviderEvent) -> Unit,
+        useCache: Boolean = true
     ): ProviderResult {
+        // 上下文缓存：完全相同的请求直接回放缓存结果，跳过 API 调用
+        if (useCache) {
+            val key = contextCache.keyFor(request)
+            contextCache.get(key)?.let { cached ->
+                val events = cached.events
+                for (e in events) onEvent(e)
+                return cached.result
+            }
+        }
+
         var last: ProviderResult? = null
         val keys = provider.allActiveKeys.ifEmpty { listOf("") }
 
@@ -29,8 +41,15 @@ class ProviderGateway(
             val attemptConfig = provider.copy(apiKey = key, apiKeys = emptyList())
             val p = factory.create(attemptConfig)
 
+            // 收集本次调用的全部事件，用于写缓存
+            val collected = mutableListOf<ProviderEvent>()
+            val collector: suspend (ProviderEvent) -> Unit = { e ->
+                collected.add(e)
+                onEvent(e)
+            }
+
             val result = try {
-                p.chat(request, onEvent)
+                p.chat(request, collector)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -38,6 +57,9 @@ class ProviderGateway(
             }
 
             if (result.success) {
+                if (useCache) {
+                    contextCache.put(contextCache.keyFor(request), CachedResult(result, collected))
+                }
                 recordUsage(attemptConfig, request, result)
                 return result
             }
