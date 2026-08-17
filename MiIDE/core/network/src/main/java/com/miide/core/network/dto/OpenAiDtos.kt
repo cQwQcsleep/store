@@ -22,7 +22,12 @@ data class OpenAiChatRequest(
 )
 
 @Serializable
-data class OpenAiMessage(val role: String, val content: String)
+data class OpenAiMessage(
+    val role: String,
+    val content: String? = null,
+    @SerialName("tool_call_id") val toolCallId: String? = null,
+    @SerialName("tool_calls") val toolCalls: List<OpenAiToolCall>? = null
+)
 
 @Serializable
 data class OpenAiTool(

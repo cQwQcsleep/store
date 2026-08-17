@@ -8,8 +8,11 @@ import com.miide.core.model.ChatConversation
 import com.miide.core.model.ChatMessage
 import com.miide.core.model.ChatRole
 import com.miide.core.model.MessageStatus
+import com.miide.core.model.ToolCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 /**
  * 对话与消息仓库。
@@ -93,7 +96,9 @@ class ConversationRepository(
         modelId = modelId,
         createdAt = createdAt,
         status = status.name,
-        error = error
+        error = error,
+        toolCallsJson = toolCalls?.let { json.encodeToString(ListSerializer(ToolCall.serializer()), it) },
+        toolCallId = toolCallId
     )
 
     private fun MessageEntity.toModel() = ChatMessage(
@@ -104,6 +109,16 @@ class ConversationRepository(
         modelId = modelId,
         createdAt = createdAt,
         status = status.let { runCatching { MessageStatus.valueOf(it) }.getOrDefault(MessageStatus.COMPLETED) },
-        error = error
+        error = error,
+        toolCalls = toolCallsJson?.takeIf { it.isNotBlank() }?.let {
+            runCatching {
+                json.decodeFromString(ListSerializer(ToolCall.serializer()), it)
+            }.getOrNull()
+        },
+        toolCallId = toolCallId
     )
+
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true }
+    }
 }

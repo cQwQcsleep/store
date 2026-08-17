@@ -4,21 +4,32 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatAlignLeft
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -42,8 +54,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.miide.core.editor.EditorSnapshot
 import com.miide.core.editor.EditorViewModel
@@ -62,6 +77,9 @@ fun EditorScreen(
     val text by viewModel.text.collectAsState()
     val fileName by viewModel.fileName.collectAsState()
     val snapshot by viewModel.snapshot.collectAsState()
+
+    val runViewModel: RunViewModel = hiltViewModel()
+    val runState by runViewModel.state.collectAsState()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -136,6 +154,9 @@ fun EditorScreen(
                     IconButton(onClick = onOpenChat) {
                         Icon(Icons.Default.SmartToy, contentDescription = "AI 助手")
                     }
+                    IconButton(onClick = { viewModel.triggerCompletion() }) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "手动补全")
+                    }
                     IconButton(onClick = { viewModel.undo() }, enabled = snapshot.canUndo) {
                         Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "撤销")
                     }
@@ -144,6 +165,12 @@ fun EditorScreen(
                     }
                     IconButton(onClick = { viewModel.format() }) {
                         Icon(Icons.AutoMirrored.Filled.FormatAlignLeft, contentDescription = "格式化")
+                    }
+                    IconButton(
+                        onClick = { runViewModel.run(viewModel.text.value, fileName) },
+                        enabled = !runState.running
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = "运行代码")
                     }
                     IconButton(onClick = { save() }) {
                         Icon(Icons.Default.Save, contentDescription = "保存")
@@ -160,37 +187,48 @@ fun EditorScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            MiCodeEditor(
-                text = text,
-                fileName = fileName,
-                darkTheme = isDark,
-                readOnly = false,
-                showLineNumber = true,
-                fontSize = 14f,
-                tabWidth = 4,
-                wordWrap = false,
-                onEditorReady = { controller ->
-                    viewModel.attach(controller)
-                    EditorBridge.register(controller)
-                },
-                onStateChange = { state ->
-                    viewModel.onSnapshotChanged(
-                        EditorSnapshot(
-                            cursorLine = state.cursorLine,
-                            cursorColumn = state.cursorColumn,
-                            canUndo = state.canUndo,
-                            canRedo = state.canRedo,
-                            lineCount = state.lineCount,
-                            charCount = state.charCount
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                MiCodeEditor(
+                    text = text,
+                    fileName = fileName,
+                    darkTheme = isDark,
+                    readOnly = false,
+                    showLineNumber = true,
+                    fontSize = 14f,
+                    tabWidth = 4,
+                    wordWrap = false,
+                    onEditorReady = { controller ->
+                        viewModel.attach(controller)
+                        EditorBridge.register(controller)
+                    },
+                    onStateChange = { state ->
+                        viewModel.onSnapshotChanged(
+                            EditorSnapshot(
+                                cursorLine = state.cursorLine,
+                                cursorColumn = state.cursorColumn,
+                                canUndo = state.canUndo,
+                                canRedo = state.canRedo,
+                                lineCount = state.lineCount,
+                                charCount = state.charCount,
+                                ghostActive = state.ghostActive
+                            )
                         )
-                    )
-                },
-                onTextChange = { newText -> viewModel.onTextChanged(newText) }
+                    },
+                    onTextChange = { newText -> viewModel.onTextChanged(newText) }
+                )
+            }
+            RunOutputPanel(
+                state = runState,
+                onDismiss = { runViewModel.dismiss() }
             )
         }
     }
@@ -198,6 +236,103 @@ fun EditorScreen(
     // 离开编辑器时注销桥接，避免 AI 对话页误插入到已销毁的视图
     DisposableEffect(Unit) {
         onDispose { EditorBridge.register(null) }
+    }
+}
+
+/** 运行结果输出面板：显示运行状态、stdout、stderr。 */
+@Composable
+private fun RunOutputPanel(
+    state: RunUiState,
+    onDismiss: () -> Unit
+) {
+    if (!state.running && state.result == null && state.error == null) return
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "运行结果",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.width(8.dp))
+                if (state.running) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 280.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                when {
+                    state.running -> {
+                        Text(
+                            "正在执行${state.language?.let { "（$it）" }.orEmpty()}…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    state.error != null -> {
+                        Text(
+                            state.error!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    else -> {
+                        val result = state.result!!
+                        Text(
+                            "退出码: ${result.exitCode}  |  耗时: ${result.durationMs}ms",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        if (result.stdout.isNotBlank()) {
+                            Text(
+                                "--- stdout ---",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                result.stdout.trimEnd(),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        if (result.stderr.isNotBlank()) {
+                            Text(
+                                "--- stderr ---",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                result.stderr.trimEnd(),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -225,6 +360,14 @@ private fun EditorStatusBar(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         )
         Spacer(Modifier.weight(1f))
+        if (snapshot.ghostActive) {
+            Text(
+                text = "幽灵补全 · Tab 接受 / Esc 取消",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(12.dp))
+        }
         Text(
             text = fileName.substringAfterLast('.', "").ifBlank { "txt" }.uppercase(),
             style = MaterialTheme.typography.labelMedium,

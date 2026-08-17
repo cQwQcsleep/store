@@ -17,5 +17,9 @@ data class MessageEntity(
     val modelId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val status: String = "COMPLETED",
-    val error: String? = null
+    val error: String? = null,
+    /** 工具调用列表（JSON 序列化，assistant 消息）。 */
+    val toolCallsJson: String? = null,
+    /** 工具回复消息：对应 assistant 端工具调用 id。 */
+    val toolCallId: String? = null
 )

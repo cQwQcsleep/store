@@ -10,26 +10,37 @@ import com.miide.core.model.ChatMessage
 import com.miide.core.model.ChatRole
 import com.miide.core.model.MessageStatus
 import com.miide.core.model.ProviderConfig
+import com.miide.core.model.ToolCall
 import com.miide.core.network.ProviderEvent
 import com.miide.core.network.ProviderGateway
 import com.miide.core.network.ProviderRequest
 import com.miide.core.network.ProviderResult
+import com.miide.tools.ToolExecutor
 import com.miide.ui.editor.EditorBridge
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** 一次工具调用（用于过程可见）。 */
-data class ToolCallInfo(val id: String?, val name: String?, val arguments: String)
+/** 一次工具调用的过程状态（用于过程可见）。 */
+data class ToolCallInfo(
+    val id: String?,
+    val name: String?,
+    val arguments: String,
+    /** 执行状态：等待 / 运行中 / 成功 / 失败。 */
+    val status: ToolCallStatus = ToolCallStatus.PENDING,
+    /** 执行结果预览（过程可见）。 */
+    val result: String? = null
+)
+
+/** 工具调用执行状态。 */
+enum class ToolCallStatus { PENDING, RUNNING, SUCCESS, FAILED }
 
 /** 用量信息。 */
 data class UsageInfo(
@@ -61,15 +72,19 @@ data class ChatUiState(
 /**
  * AI 对话 ViewModel（Activity 级共享，底部面板与全屏共用）。
  *
- * 负责：选择活动供应商 → 发送消息 → 流式接收（正文/思考/工具/用量）→ 持久化到 Room。
- * AI 工作过程全程可见：思考增量、工具调用、用量实时更新。
+ * 负责：选择活动供应商 → 发送消息 → 流式接收（正文/思考/工具/用量）→ 执行工具调用循环 → 持久化。
+ * AI 工作过程全程可见：思考增量、工具调用及结果、用量实时更新。
+ *
+ * function calling 循环：
+ *   模型返回工具调用 → 执行工具 → 把工具结果回传给模型 → 模型继续回复，直到无更多工具调用。
  */
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val providerRepository: ProviderRepository,
     private val conversationRepository: ConversationRepository,
     preferencesManager: PreferencesManager,
-    private val gateway: ProviderGateway
+    private val gateway: ProviderGateway,
+    private val toolExecutor: ToolExecutor
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -78,6 +93,9 @@ class ChatViewModel @Inject constructor(
     private var streamingJob: Job? = null
     private var conversationId: String? = null
     private var assistantId: String? = null
+
+    /** 完整模型上下文（含工具消息，与展示用的 messages 分离）。 */
+    private val contextHistory = mutableListOf<ChatMessage>()
 
     init {
         viewModelScope.launch {
@@ -143,9 +161,10 @@ class ChatViewModel @Inject constructor(
                 conv.id
             }
 
-            // 用户消息（持久化）
+            // 用户消息（持久化 + 入上下文）
             val userMsg = ChatMessage(role = ChatRole.USER, content = text)
             conversationRepository.upsertMessage(cid, userMsg)
+            contextHistory.add(userMsg)
             _uiState.update { it.copy(messages = it.messages + userMsg, error = null) }
 
             // 助手占位（流式期间不落库，完成后落库）
@@ -166,14 +185,9 @@ class ChatViewModel @Inject constructor(
                 )
             }
 
-            val history = _uiState.value.messages
             streamingJob = viewModelScope.launch {
                 val result = try {
-                    gateway.chat(
-                        provider,
-                        ProviderRequest(modelId = modelId, messages = history, stream = true),
-                        onEvent = { event -> handleEvent(event) }
-                    )
+                    runToolLoop(provider, modelId, cid)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -182,6 +196,82 @@ class ChatViewModel @Inject constructor(
                 finishStream(result, cid)
             }
         }
+    }
+
+    /**
+     * function calling 循环：请求模型 → 有工具调用则执行并回传 → 继续，直到无工具调用或超轮次。
+     */
+    private suspend fun runToolLoop(
+        provider: ProviderConfig,
+        modelId: String,
+        cid: String
+    ): ProviderResult {
+        val allToolCalls = mutableListOf<ToolCall>()
+
+        repeat(MAX_TOOL_ROUNDS) { round ->
+            val roundCalls = mutableListOf<ToolCall>()
+
+            val result = try {
+                gateway.chat(
+                    provider,
+                    ProviderRequest(
+                        modelId = modelId,
+                        messages = contextHistory.toList(),
+                        tools = toolExecutor.specs(),
+                        stream = true
+                    ),
+                    onEvent = { event ->
+                        when (event) {
+                            is ProviderEvent.ToolCall -> {
+                                val tc = ToolCall(event.id, event.name, event.arguments)
+                                roundCalls.add(tc)
+                                allToolCalls.add(tc)
+                                _uiState.update {
+                                    it.copy(currentToolCalls = it.currentToolCalls + ToolCallInfo(tc.id, tc.name, tc.arguments))
+                                }
+                            }
+                            else -> handleEvent(event)
+                        }
+                    }
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ProviderResult(false, e.message ?: "请求失败")
+            }
+
+            if (!result.success) return result
+
+            if (roundCalls.isEmpty()) {
+                // 本轮无工具调用：结束
+                return result
+            }
+
+            // 助手消息（含工具调用）入上下文并持久化
+            val assistantWithCalls = _uiState.value.messages
+                .firstOrNull { it.id == assistantId }
+                ?.copy(toolCalls = allToolCalls.toList())
+                ?: return result
+            contextHistory.add(assistantWithCalls)
+            conversationRepository.upsertMessage(cid, assistantWithCalls)
+
+            // 执行工具，把结果作为 tool 消息回传
+            for (tc in roundCalls) {
+                markToolRunning(tc)
+                val output = toolExecutor.execute(tc.name.orEmpty(), tc.arguments)
+                markToolDone(tc, output)
+
+                val toolMsg = ChatMessage(
+                    role = ChatRole.TOOL,
+                    content = output,
+                    toolCallId = tc.id
+                )
+                contextHistory.add(toolMsg)
+                conversationRepository.upsertMessage(cid, toolMsg)
+            }
+            // 下一轮：同一占位继续累积正文
+        }
+        return ProviderResult(success = true)
     }
 
     /** 中断生成（标记为 INTERRUPTED 并落库）。 */
@@ -213,14 +303,33 @@ class ChatViewModel @Inject constructor(
             is ProviderEvent.ReasoningDelta -> updateAssistant { msg ->
                 msg.copy(reasoning = (msg.reasoning ?: "") + event.content)
             }
-            is ProviderEvent.ToolCall -> _uiState.update {
-                it.copy(currentToolCalls = it.currentToolCalls + ToolCallInfo(event.id, event.name, event.arguments))
-            }
+            is ProviderEvent.ToolCall -> Unit // 工具调用在 runToolLoop 中单独收集
             is ProviderEvent.Usage -> _uiState.update {
                 it.copy(usage = UsageInfo(event.promptTokens, event.completionTokens, event.cachedTokens, event.totalTokens))
             }
             is ProviderEvent.Error -> _uiState.update { it.copy(error = event.message) }
             ProviderEvent.Done -> Unit
+        }
+    }
+
+    private fun markToolRunning(tc: ToolCall) {
+        _uiState.update { st ->
+            st.copy(currentToolCalls = st.currentToolCalls.map {
+                if (it.id == tc.id) it.copy(status = ToolCallStatus.RUNNING) else it
+            })
+        }
+    }
+
+    private fun markToolDone(tc: ToolCall, output: String) {
+        _uiState.update { st ->
+            st.copy(currentToolCalls = st.currentToolCalls.map {
+                if (it.id == tc.id) {
+                    it.copy(
+                        status = if (output.startsWith("错误") || output.startsWith("[工具")) ToolCallStatus.FAILED else ToolCallStatus.SUCCESS,
+                        result = output.take(120)
+                    )
+                } else it
+            })
         }
     }
 
@@ -266,5 +375,9 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             conversationId?.let { cid -> conversationRepository.upsertMessage(cid, final) }
         }
+    }
+
+    private companion object {
+        const val MAX_TOOL_ROUNDS = 8
     }
 }

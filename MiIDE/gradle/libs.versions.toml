@@ -17,6 +17,9 @@ navigationCompose = "2.8.5"
 datastore = "1.1.1"
 rosemoe = "0.23.2"
 okhttp = "4.12.0"
+quickjs = "1.4.6"
+luaj = "3.0.1"
+chaquopy = "17.0.0"
 
 [libraries]
 # AndroidX 基础
@@ -62,6 +65,11 @@ rosemoe-editor = { group = "io.github.Rosemoe.sora-editor", name = "editor", ver
 rosemoe-language-textmate = { group = "io.github.Rosemoe.sora-editor", name = "language-textmate", version.ref = "rosemoe" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
+# 内置精简运行时
+quickjs-android = { group = "io.github.taoweiji.quickjs", name = "quickjs-android", version.ref = "quickjs" }
+luaj = { group = "org.luaj", name = "luaj-jse", version.ref = "luaj" }
+chaquopy-gradle = { group = "com.chaquo.python", name = "gradle", version.ref = "chaquopy" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
@@ -70,3 +78,4 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+chaquopy = { id = "com.chaquo.python", version.ref = "chaquopy" }

@@ -12,6 +12,8 @@ import com.miide.ui.ai.ProviderEditScreen
 import com.miide.ui.chat.ChatScreen
 import com.miide.ui.editor.EditorScreen
 import com.miide.ui.home.HomeScreen
+import com.miide.ui.mcp.McpEditScreen
+import com.miide.ui.mcp.McpSettingsScreen
 
 /** 路由定义。 */
 object Routes {
@@ -20,6 +22,8 @@ object Routes {
     const val PROVIDER_EDIT = "provider_edit"
     const val EDITOR = "editor"
     const val CHAT = "chat"
+    const val MCP_SETTINGS = "mcp_settings"
+    const val MCP_EDIT = "mcp_edit"
 }
 
 @Composable
@@ -48,7 +52,34 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
             AiSettingsScreen(
                 onBack = { navController.popBackStack() },
                 onAddProvider = { navController.navigate(Routes.PROVIDER_EDIT) },
-                onEditProvider = { id -> navController.navigate("${Routes.PROVIDER_EDIT}?providerId=$id") }
+                onEditProvider = { id -> navController.navigate("${Routes.PROVIDER_EDIT}?providerId=$id") },
+                onOpenMcp = { navController.navigate(Routes.MCP_SETTINGS) }
+            )
+        }
+
+        composable(Routes.MCP_SETTINGS) {
+            McpSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onAddServer = { navController.navigate(Routes.MCP_EDIT) },
+                onEditServer = { id -> navController.navigate("${Routes.MCP_EDIT}?serverId=$id") }
+            )
+        }
+
+        composable(
+            route = "${Routes.MCP_EDIT}?serverId={serverId}",
+            arguments = listOf(
+                navArgument("serverId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val serverId = backStackEntry.arguments?.getString("serverId")
+            McpEditScreen(
+                serverId = serverId,
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
             )
         }
 

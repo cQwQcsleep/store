@@ -26,11 +26,24 @@ interface EditorController {
 
     /** 在当前光标位置插入文本（用于 AI 生成代码一键插入）。 */
     fun insertText(text: String)
+
+    /** 幽灵补全：手动触发（展示/刷新建议）。 */
+    fun triggerCompletion(): Boolean
+
+    /** 幽灵补全：切换到下一个候选。 */
+    fun cycleCompletion(): Boolean
+
+    /** 幽灵补全：接受当前幽灵文本并插入。 */
+    fun acceptCompletion(): Boolean
+
+    /** 幽灵补全：取消当前幽灵文本。 */
+    fun dismissCompletion(): Boolean
 }
 
 /** [CodeEditor] 视图的默认实现。 */
 internal class CodeEditorController(
-    private val editor: io.github.rosemoe.sora.widget.CodeEditor
+    private val editor: io.github.rosemoe.sora.widget.CodeEditor,
+    private val completion: CompletionEngine? = null
 ) : EditorController {
     override fun undo() = editor.undo()
     override fun redo() = editor.redo()
@@ -47,6 +60,19 @@ internal class CodeEditorController(
         // commitText 在当前光标处插入，且内部按一次输入处理（可整体撤销）
         editor.commitText(text)
     }
+    override fun triggerCompletion(): Boolean {
+        completion?.triggerManual()
+        return completion != null
+    }
+
+    override fun cycleCompletion(): Boolean = completion?.cycleNext() ?: false
+
+    override fun acceptCompletion(): Boolean = completion?.accept() ?: false
+
+    override fun dismissCompletion(): Boolean {
+        completion?.dismiss()
+        return completion != null
+    }
 }
 
 /**
@@ -59,6 +85,7 @@ data class EditorSnapshot(
     val canRedo: Boolean = false,
     val lineCount: Int = 0,
     val charCount: Int = 0,
+    val ghostActive: Boolean = false,
 )
 
 /**
@@ -111,4 +138,16 @@ class EditorViewModel : ViewModel() {
 
     /** 格式化文档。 */
     fun format(): Boolean = controller?.format() ?: false
+
+    /** 幽灵补全：手动触发。 */
+    fun triggerCompletion() = controller?.triggerCompletion()
+
+    /** 幽灵补全：切换下一个候选。 */
+    fun cycleCompletion() = controller?.cycleCompletion()
+
+    /** 幽灵补全：接受并插入。 */
+    fun acceptCompletion() = controller?.acceptCompletion()
+
+    /** 幽灵补全：取消。 */
+    fun dismissCompletion() = controller?.dismissCompletion()
 }

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.chaquopy)
 }
 
 android {
@@ -17,6 +18,11 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        // Chaquopy 17 的 Python 3.12 仅支持 64 位 ABI
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -46,12 +52,20 @@ kotlin {
     }
 }
 
+// 内置精简运行时：Python（Chaquopy）
+chaquopy {
+    defaultConfig {
+        version = "3.12"
+    }
+}
+
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:network"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:editor"))
+    implementation(project(":core:runtime"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

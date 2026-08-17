@@ -1,6 +1,7 @@
 package com.miide.core.editor
 
 import android.graphics.Typeface
+import android.view.KeyEvent
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -15,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.miide.core.editor.theme.ThemeManager
 import io.github.rosemoe.sora.event.ContentChangeEvent
+import io.github.rosemoe.sora.event.EditorKeyEvent
 import io.github.rosemoe.sora.event.EventReceiver
 import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.event.Unsubscribe
@@ -54,13 +56,22 @@ class EditorState {
     /** 总字符数。 */
     var charCount: Int by mutableStateOf(0)
         internal set
+
+    /** 幽灵补全是否处于展示状态。 */
+    var ghostActive: Boolean by mutableStateOf(false)
+        internal set
+}
+
+/** 跨 factory/update 持有编辑器视图与补全引擎的引用。 */
+private class EditorRef {
+    var engine: CompletionEngine? = null
 }
 
 /**
  * Compose 可组合的编辑器组件。
  *
- * 基于 [CodeEditor]（Rosemoe Sora-Editor），以 `AndroidView` 方式嵌入 Compose 树，
- * 提供语法高亮、行号、撤销/重做、只读等能力。
+ * 基于 [GhostCodeEditor]（Rosemoe Sora-Editor），以 `AndroidView` 方式嵌入 Compose 树，
+ * 提供语法高亮、行号、撤销/重做、只读及幽灵补全等能力。
  *
  * @param text 文本内容（外部受控；仅在内容实际变化时回写编辑器，避免打断输入）
  * @param fileName 用于推断语法高亮语言的文件名（含扩展名）
@@ -72,6 +83,7 @@ class EditorState {
  * @param wordWrap 是否自动换行
  * @param monoSpace 是否使用系统等宽字体
  * @param extraTypeface 自定义字体（优先于 [monoSpace]）
+ * @param ghostCompletion 是否启用幽灵补全（自动 + 手动触发）
  * @param onEditorReady 编辑器就绪回调，用于把编辑器命令接口交给外部（如 ViewModel）
  * @param onStateChange 状态变更回调（光标、撤销/重做能力、行数等）
  * @param onTextChange 文本变更回调
@@ -89,6 +101,7 @@ fun MiCodeEditor(
     wordWrap: Boolean = false,
     monoSpace: Boolean = true,
     extraTypeface: Typeface? = null,
+    ghostCompletion: Boolean = true,
     onEditorReady: (EditorController) -> Unit = {},
     onStateChange: (EditorState) -> Unit = {},
     onTextChange: (String) -> Unit = {},
@@ -96,6 +109,7 @@ fun MiCodeEditor(
     val context = LocalContext.current
     val syntaxHighlighter = remember { SyntaxHighlighter(context) }
     val themeManager = remember { ThemeManager(context) }
+    val ref = remember { EditorRef() }
 
     // 回调始终引用最新值，避免 AndroidView factory 捕获旧闭包
     val currentOnStateChange by rememberUpdatedState(onStateChange)
@@ -115,7 +129,7 @@ fun MiCodeEditor(
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { ctx ->
-            CodeEditor(ctx).apply {
+            GhostCodeEditor(ctx).apply {
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
@@ -131,8 +145,17 @@ fun MiCodeEditor(
                 typefaceLineNumber = typefaceText
                 setColorScheme(colorScheme)
 
+                // 幽灵补全引擎（自动 + 手动触发，Tab 接受 / Esc 取消）
+                val engine = CompletionEngine(this).also { ref.engine = it }
+
+                // 幽灵可见性变化 -> 同步 Compose 状态（状态栏提示）
+                onGhostVisibilityChange = { visible ->
+                    editorState.ghostActive = visible
+                    currentOnStateChange(editorState)
+                }
+
                 // 把命令接口交给外部
-                onEditorReady(CodeEditorController(this))
+                onEditorReady(CodeEditorController(this, engine))
 
                 // 文本变更事件
                 subscribeEvent(
@@ -147,6 +170,7 @@ fun MiCodeEditor(
                             editorState.canRedo = canRedo()
                             currentOnStateChange(editorState)
                             currentOnTextChange(editorState.text)
+                            if (ghostCompletion) engine.onInputChanged()
                         }
                     }
                 )
@@ -162,6 +186,31 @@ fun MiCodeEditor(
                             editorState.canUndo = canUndo()
                             editorState.canRedo = canRedo()
                             currentOnStateChange(editorState)
+                            if (ghostCompletion) engine.onInputChanged()
+                        }
+                    }
+                )
+
+                // 键盘：Tab 接受幽灵文本 / Esc 取消
+                subscribeEvent(
+                    EditorKeyEvent::class.java,
+                    object : EventReceiver<EditorKeyEvent> {
+                        override fun onReceive(event: EditorKeyEvent, unsubscribe: Unsubscribe) {
+                            if (event.getAction() != KeyEvent.ACTION_DOWN) return
+                            when (event.getKeyCode()) {
+                                KeyEvent.KEYCODE_TAB -> {
+                                    if (engine.isGhostActive) {
+                                        engine.accept()
+                                        event.result(true)
+                                    }
+                                }
+                                KeyEvent.KEYCODE_ESCAPE -> {
+                                    if (engine.isGhostActive) {
+                                        engine.dismiss()
+                                        event.result(true)
+                                    }
+                                }
+                            }
                         }
                     }
                 )
@@ -170,6 +219,9 @@ fun MiCodeEditor(
             }
         },
         update = { editor ->
+            // 幽灵补全：同步文件扩展名（用于关键字补全）
+            ref.engine?.fileExtension = fileName.substringAfterLast('.', "").lowercase()
+
             // 基础配置同步
             editor.setEditable(!readOnly)
             editor.isLineNumberEnabled = showLineNumber

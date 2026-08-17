@@ -37,6 +37,7 @@ private object PrefKeys {
     val terminalShell = stringPreferencesKey("terminal_shell")
     val lastOpenedProjectId = stringPreferencesKey("last_opened_project_id")
     val lastOpenedFilePath = stringPreferencesKey("last_opened_file_path")
+    val mcpServers = stringPreferencesKey("mcp_servers")
 }
 
 /**
@@ -79,6 +80,15 @@ class PreferencesManager(private val context: Context) {
 
     fun observeBoolean(key: String, default: Boolean = false): Flow<Boolean> =
         context.preferencesDataStore.data.map { it[booleanPreferencesKey(key)] ?: default }
+
+    // ---- MCP 服务器配置（JSON 序列化字符串） ----
+
+    fun observeMcpServers(): Flow<String?> =
+        context.preferencesDataStore.data.map { it[PrefKeys.mcpServers] }
+
+    suspend fun setMcpServers(json: String) {
+        context.preferencesDataStore.edit { it[PrefKeys.mcpServers] = json }
+    }
 
     // ---- 写入方法 ----
 

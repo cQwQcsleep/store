@@ -18,6 +18,14 @@ import com.miide.core.network.ProviderFactory
 import com.miide.core.network.ProviderGateway
 import com.miide.core.network.RetryPolicy
 import com.miide.core.network.UsageSink
+import com.miide.core.runtime.DefaultRuntimes
+import com.miide.core.runtime.RuntimeRegistry
+import com.miide.runtime.PythonRuntime
+import com.miide.tools.ToolExecutor
+import com.miide.tools.ToolRegistry
+import com.miide.tools.builtin.registerBuiltinTools
+import com.miide.tools.mcp.McpManager
+import com.miide.tools.mcp.McpInitializer
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -109,4 +117,24 @@ object AppModule {
         retry: RetryPolicy,
         usageSink: UsageSink
     ): ProviderGateway = ProviderGateway(factory, retry, usageSink)
+
+    @Provides
+    @Singleton
+    fun provideToolRegistry(runtimeRegistry: RuntimeRegistry): ToolRegistry =
+        ToolRegistry().also { registerBuiltinTools(it, runtimeRegistry) }
+
+    @Provides
+    @Singleton
+    fun provideRuntimeRegistry(): RuntimeRegistry =
+        DefaultRuntimes.create().also { it.register(PythonRuntime()) }
+
+    @Provides
+    @Singleton
+    fun provideToolExecutor(registry: ToolRegistry): ToolExecutor =
+        ToolExecutor(registry)
+
+    @Provides
+    @Singleton
+    fun provideMcpManager(client: HttpClient, registry: ToolRegistry): McpManager =
+        McpManager(client, registry)
 }

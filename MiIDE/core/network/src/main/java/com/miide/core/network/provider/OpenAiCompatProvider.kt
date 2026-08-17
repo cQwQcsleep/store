@@ -1,5 +1,6 @@
 package com.miide.core.network.provider
 
+import com.miide.core.model.ChatRole
 import com.miide.core.model.ModelConfig
 import com.miide.core.model.ProviderConfig
 import com.miide.core.network.AiProvider
@@ -16,6 +17,7 @@ import com.miide.core.network.dto.OpenAiFunction
 import com.miide.core.network.dto.OpenAiMessage
 import com.miide.core.network.dto.OpenAiModelsResponse
 import com.miide.core.network.dto.OpenAiTool
+import com.miide.core.network.dto.OpenAiToolCall
 import com.miide.core.network.dto.OpenAiFunctionDelta
 import com.miide.core.network.dto.OpenAiToolCallDelta
 import io.ktor.client.HttpClient
@@ -218,7 +220,28 @@ open class OpenAiCompatProvider(
                 add(OpenAiMessage("system", it))
             }
             request.messages.forEach { m ->
-                add(OpenAiMessage(m.role.name.lowercase(), m.content))
+                when (m.role) {
+                    ChatRole.TOOL -> add(
+                        OpenAiMessage(
+                            role = "tool",
+                            content = m.content,
+                            toolCallId = m.toolCallId ?: ""
+                        )
+                    )
+                    ChatRole.ASSISTANT -> add(
+                        OpenAiMessage(
+                            role = "assistant",
+                            content = m.content.ifEmpty { null },
+                            toolCalls = m.toolCalls?.map { tc ->
+                                OpenAiToolCall(
+                                    id = tc.id,
+                                    function = OpenAiFunctionDelta(name = tc.name, arguments = tc.arguments)
+                                )
+                            }
+                        )
+                    )
+                    else -> add(OpenAiMessage(m.role.name.lowercase(), m.content))
+                }
             }
         }
         val tools = request.tools?.map { t ->

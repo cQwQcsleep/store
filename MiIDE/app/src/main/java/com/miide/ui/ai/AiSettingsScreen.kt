@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
@@ -56,6 +57,7 @@ fun AiSettingsScreen(
     onBack: () -> Unit,
     onAddProvider: () -> Unit,
     onEditProvider: (String) -> Unit,
+    onOpenMcp: () -> Unit = {},
     viewModel: AiSettingsViewModel = hiltViewModel()
 ) {
     val providers by viewModel.providers.collectAsState()
@@ -83,19 +85,21 @@ fun AiSettingsScreen(
             )
         }
     ) { innerPadding ->
-        if (providers.isEmpty()) {
-            MiEmptyState(
-                title = "还没有配置 AI 供应商",
-                subtitle = "添加一个供应商并填入 API Key 即可开始",
-                modifier = Modifier.padding(innerPadding)
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (providers.isEmpty()) {
+                item {
+                    MiEmptyState(
+                        title = "还没有配置 AI 供应商",
+                        subtitle = "添加一个供应商并填入 API Key 即可开始",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
                 item {
                     Text(
                         text = "供应商",
@@ -113,6 +117,52 @@ fun AiSettingsScreen(
                         onSetDefault = { viewModel.setDefault(config.id) },
                         onDelete = { deleteTarget = config }
                     )
+                }
+            }
+
+            item {
+                Text(
+                    text = "工具",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+            item {
+                MiCardGroup {
+                    Surface(
+                        onClick = onOpenMcp,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = "MCP 服务器",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = "连接 MCP 服务器，把其工具（文件、数据库、搜索等）提供给 AI 调用",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
                 }
             }
         }
