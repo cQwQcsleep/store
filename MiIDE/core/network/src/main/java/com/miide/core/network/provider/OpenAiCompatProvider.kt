@@ -3,6 +3,7 @@ package com.miide.core.network.provider
 import com.miide.core.model.ChatRole
 import com.miide.core.model.ModelConfig
 import com.miide.core.model.ProviderConfig
+import com.miide.core.model.ProviderType
 import com.miide.core.network.AiProvider
 import com.miide.core.network.ModelInfo
 import com.miide.core.network.ProviderEvent
@@ -56,6 +57,21 @@ open class OpenAiCompatProvider(
     protected open fun authHeaders(key: String): Map<String, String> =
         if (key.isNotBlank()) mapOf(HttpHeaders.Authorization to "Bearer $key") else emptyMap()
 
+    /**
+     * 最终请求头：鉴权 + 用户自定义头，并补齐供应商必需头。
+     * 通义千问 DashScope 的 OpenAI 兼容模式必须以 `X-DashScope-SSE: enable`
+     * 才会以 SSE 流式返回；用户未显式配置时自动补上。
+     */
+    protected open fun effectiveHeaders(key: String): Map<String, String> {
+        val extra = buildMap {
+            putAll(config.extraHeaders)
+            if (config.type == ProviderType.QWEN && !containsKey("X-DashScope-SSE")) {
+                put("X-DashScope-SSE", "enable")
+            }
+        }
+        return authHeaders(key) + extra
+    }
+
     override suspend fun chat(
         request: ProviderRequest,
         onEvent: suspend (ProviderEvent) -> Unit
@@ -71,8 +87,7 @@ open class OpenAiCompatProvider(
             val response = client.preparePost(chatUrl()) {
                 contentType(ContentType.Application.Json)
                 setBody(json.encodeToString(OpenAiChatRequest.serializer(), body))
-                authHeaders(key).forEach { (k, v) -> header(k, v) }
-                config.extraHeaders.forEach { (k, v) -> header(k, v) }
+                effectiveHeaders(key).forEach { (k, v) -> header(k, v) }
             }.execute { it }
 
             if (!response.status.isSuccess()) {
@@ -196,8 +211,7 @@ open class OpenAiCompatProvider(
 
         return try {
             val response = client.get(modelsUrl()) {
-                authHeaders(config.allActiveKeys.firstOrNull().orEmpty()).forEach { (k, v) -> header(k, v) }
-                config.extraHeaders.forEach { (k, v) -> header(k, v) }
+                effectiveHeaders(config.allActiveKeys.firstOrNull().orEmpty()).forEach { (k, v) -> header(k, v) }
             }
             if (response.status.isSuccess()) {
                 val text = response.bodyAsText()
@@ -259,6 +273,10 @@ open class OpenAiCompatProvider(
         val maxTokens = request.maxTokens?.toLong() ?: model.maxTokens
         val reasoning = request.reasoningEffort ?: model.reasoningEffort
 
+        // 通义千问 Qwen3：思考模式用 enable_thinking 开关，不支持 reasoning_effort
+        val isQwen = config.type == ProviderType.QWEN
+        val enableThinking = if (isQwen) reasoning?.let { it != "low" && it != "none" } else null
+
         return OpenAiChatRequest(
             model = model.id,
             messages = messages,
@@ -266,7 +284,8 @@ open class OpenAiCompatProvider(
             maxTokens = maxTokens?.toInt(),
             maxCompletionTokens = null,
             stream = request.stream,
-            reasoningEffort = reasoning,
+            reasoningEffort = if (isQwen) null else reasoning,
+            enableThinking = enableThinking,
             tools = tools?.takeIf { model.toolsEnabled }
         )
     }

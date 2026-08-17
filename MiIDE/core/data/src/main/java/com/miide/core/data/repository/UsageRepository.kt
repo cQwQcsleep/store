@@ -4,16 +4,18 @@ import com.miide.core.data.local.dao.UsageDao
 import com.miide.core.data.local.dao.UsageTotals
 import com.miide.core.data.local.entity.UsageRecordEntity
 import com.miide.core.model.UsageRecord
+import com.miide.core.network.BudgetStats
 import com.miide.core.network.UsageSink
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.Calendar
 
 /**
- * 用量轨迹仓库。实现 [UsageSink]，由网络层在每次请求结束后回调落库。
+ * 用量轨迹仓库。实现 [UsageSink]（网络层回调落库）与 [BudgetStats]（聚合网关限额统计）。
  */
 class UsageRepository(
     private val dao: UsageDao
-) : UsageSink {
+) : UsageSink, BudgetStats {
 
     fun observeRecent(limit: Int = 100): Flow<List<UsageRecord>> =
         dao.observeRecent(limit).map { list -> list.map { it.toModel() } }
@@ -42,9 +44,30 @@ class UsageRepository(
         )
     }
 
+    /** 今日（本地时区 0 点起）累计 token。 */
+    override suspend fun todayTokens(): Long = dao.sumTokensSince(startOfDay())
+
+    /** 本月（本地时区 1 日起）累计成本 USD。 */
+    override suspend fun monthCostUsd(): Double = dao.sumCostSince(startOfMonth())
+
     suspend fun deleteBefore(before: Long) = dao.deleteBefore(before)
 
     suspend fun clear() = dao.clear()
+
+    private fun startOfDay(): Long = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    private fun startOfMonth(): Long = Calendar.getInstance().apply {
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
 
     private fun UsageRecordEntity.toModel() = UsageRecord(
         id = id,

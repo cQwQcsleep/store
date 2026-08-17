@@ -37,4 +37,22 @@ object EditorBridge {
         val ctrl = controller ?: return
         mainHandler.post { ctrl.insertText(text) }
     }
+
+    /** 读取当前编辑器文本（回调在 UI 线程）。 */
+    fun readCurrentText(callback: (String?) -> Unit) {
+        val ctrl = controller ?: run { callback(null); return }
+        mainHandler.post { callback(ctrl.getText()) }
+    }
+
+    /** 读取当前光标偏移（回调在 UI 线程）。 */
+    fun readCursorOffset(callback: (Int?) -> Unit) {
+        val ctrl = controller ?: run { callback(null); return }
+        mainHandler.post { callback(ctrl.cursorOffset()) }
+    }
+
+    /** 整体设置编辑器文本（用于拒绝 diff 时回滚）。 */
+    fun setText(text: String) {
+        val ctrl = controller ?: return
+        mainHandler.post { ctrl.setText(text) }
+    }
 }

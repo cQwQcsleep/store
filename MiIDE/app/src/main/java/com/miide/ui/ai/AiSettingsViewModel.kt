@@ -26,6 +26,11 @@ class AiSettingsViewModel @Inject constructor(
         .map { it.defaultProviderId }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** 聚合网关限额配置（每日 token / 每月预算 USD，null=不限制）。 */
+    val budget: StateFlow<Pair<Long?, Double?>> = preferencesManager.preferences
+        .map { it.budgetDailyTokenLimit to it.budgetMonthlyCostUsd }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null to null)
+
     fun setDefault(id: String?) {
         viewModelScope.launch { preferencesManager.setDefaultProviderId(id) }
     }
@@ -39,5 +44,10 @@ class AiSettingsViewModel @Inject constructor(
             providerRepository.deleteById(config.id)
             if (defaultProviderId.value == config.id) setDefault(null)
         }
+    }
+
+    /** 保存聚合网关限额（null=不限制对应维度）。 */
+    fun setBudget(dailyTokenLimit: Long?, monthlyCostUsd: Double?) {
+        viewModelScope.launch { preferencesManager.setBudget(dailyTokenLimit, monthlyCostUsd) }
     }
 }

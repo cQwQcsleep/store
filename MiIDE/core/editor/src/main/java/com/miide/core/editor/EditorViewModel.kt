@@ -21,6 +21,9 @@ interface EditorController {
     /** 读取当前文本。 */
     fun getText(): String
 
+    /** 当前光标在文档中的字符偏移。 */
+    fun cursorOffset(): Int
+
     /** 请求焦点；返回是否成功获得焦点。 */
     fun requestFocus(): Boolean
 
@@ -54,6 +57,7 @@ internal class CodeEditorController(
         }
     }
     override fun getText(): String = editor.getText().toString()
+    override fun cursorOffset(): Int = editor.cursor.left
     override fun requestFocus(): Boolean = editor.requestFocus()
     override fun insertText(text: String) {
         if (text.isEmpty()) return

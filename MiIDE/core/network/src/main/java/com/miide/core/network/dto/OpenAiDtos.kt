@@ -18,6 +18,8 @@ data class OpenAiChatRequest(
     @SerialName("max_completion_tokens") val maxCompletionTokens: Int? = null,
     val stream: Boolean = true,
     @SerialName("reasoning_effort") val reasoningEffort: String? = null,
+    // 通义千问 Qwen3：以 enable_thinking 开关思考模式（而非 reasoning_effort）
+    @SerialName("enable_thinking") val enableThinking: Boolean? = null,
     val tools: List<OpenAiTool>? = null
 )
 

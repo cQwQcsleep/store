@@ -19,6 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Commit
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
@@ -50,6 +53,9 @@ fun HomeScreen(
     onOpenAiSettings: () -> Unit,
     onOpenChat: () -> Unit,
     onOpenBrowser: () -> Unit = {},
+    onOpenGit: () -> Unit = {},
+    onOpenRemote: () -> Unit = {},
+    onOpenPlugin: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -130,6 +136,27 @@ fun HomeScreen(
                         title = "浏览器",
                         subtitle = "网页浏览 / 实时预览 / DevTools",
                         onClick = onOpenBrowser
+                    )
+                    HomeActionItem(
+                        icon = Icons.Default.Commit,
+                        tint = MiColors.AccentViolet,
+                        title = "Git 集成",
+                        subtitle = "克隆 / 提交 / 推送 / 拉取 / 分支",
+                        onClick = onOpenGit
+                    )
+                    HomeActionItem(
+                        icon = Icons.Default.Dns,
+                        tint = MiColors.AccentGreen,
+                        title = "远程开发",
+                        subtitle = "SSH / SFTP 连接服务器与文件浏览",
+                        onClick = onOpenRemote
+                    )
+                    HomeActionItem(
+                        icon = Icons.Default.Extension,
+                        tint = MiColors.AccentBlue,
+                        title = "插件市场",
+                        subtitle = "浏览安装脚本插件 / 主题 / 功能包",
+                        onClick = onOpenPlugin
                     )
                 }
 

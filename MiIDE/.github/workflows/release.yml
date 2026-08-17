@@ -1,0 +1,58 @@
+# MiIDE 发布流水线：打 tag 时构建 Release APK 并发布 GitHub Release。
+#
+# 触发：推送形如 v1.0.0 的 tag（语义化版本）。
+# 签名：通过仓库 Secret 注入（KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD），
+#       仓库内不保存任何明文密钥。
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Write keystore (from secrets)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > keystore.jks
+            {
+              echo "storeFile=keystore.jks"
+              echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
+              echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+              echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+            } > keystore.properties
+          fi
+
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --no-daemon --console=plain
+
+      - name: Upload APK as release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/*.apk
+          body: |
+            ## MiIDE ${{ github.ref_name }}
+
+            - 安卓端 AI 编程 IDE，完全免费 / 完全开源 / 零遥测零埋点
+            - 支持 DeepSeek / 智谱 GLM / Kimi / 通义千问等供应商
+            - 安装：下载 APK 后开启「允许安装未知应用」侧载即可

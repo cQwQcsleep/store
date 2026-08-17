@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+**/build/
+.kotlin/
+captures/
+
+# Android / IDE
+local.properties
+*.iml
+.idea/
+.DS_Store
+*.apk.idsig
+
+# 签名密钥（绝不入库；由 CI Secret 或本地 keystore.properties 注入）
+keystore.properties
+*.jks
+*.keystore
+
+# Python（Chaquopy 运行时缓存）
+python/venv/
+__pycache__/

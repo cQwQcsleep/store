@@ -27,6 +27,8 @@ data class AppPreferences(
     val aiShowTokenUsage: Boolean = true,
     val aiMaxRetries: Int = 3,
     val terminalShell: String = "sh",             // sh | bash | termux
+    val budgetDailyTokenLimit: Long? = null,       // 聚合网关：每日 token 上限（null=不限）
+    val budgetMonthlyCostUsd: Double? = null,      // 聚合网关：每月预算上限 USD（null=不限）
     val lastOpenedProjectId: String? = null,
     val lastOpenedFilePath: String? = null
 )

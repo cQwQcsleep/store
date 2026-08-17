@@ -17,7 +17,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.NorthWest
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Stop
@@ -38,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.miide.core.designsystem.theme.MiColors
 import com.miide.core.model.ChatMessage
@@ -295,7 +299,7 @@ fun ChatProviderBadge(provider: ProviderConfig?, modelId: String?) {
     }
 }
 
-/** 输入栏（发送 / 停止 / 建议队列）。 */
+/** 输入栏（发送 / 暂停·继续 / 停止 / 建议队列）。 */
 @Composable
 fun ChatInputBar(
     onSend: (String) -> Unit,
@@ -303,27 +307,81 @@ fun ChatInputBar(
     isStreaming: Boolean,
     enabled: Boolean,
     modifier: Modifier = Modifier,
-    pendingCount: Int = 0
+    pendingSuggestions: List<String> = emptyList(),
+    onRemoveSuggestion: (Int) -> Unit = {},
+    onClearPending: () -> Unit = {},
+    isPaused: Boolean = false,
+    onPause: () -> Unit = {},
+    onResume: () -> Unit = {}
 ) {
     var input by remember { mutableStateOf("") }
     Column(modifier) {
-        if (pendingCount > 0) {
-            Row(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+        if (pendingSuggestions.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Schedule,
-                    contentDescription = null,
-                    tint = MiColors.AccentCyan.copy(alpha = 0.8f),
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = "$pendingCount 条修改意见已排队，AI 本轮结束后自动处理",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MiColors.AccentCyan.copy(alpha = 0.85f)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = MiColors.AccentCyan.copy(alpha = 0.8f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "${pendingSuggestions.size} 条意见已排队，本轮结束后按顺序处理",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MiColors.AccentCyan.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Surface(
+                        onClick = onClearPending,
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    ) {
+                        Text(
+                            text = "清空",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+                // 队列明细：展示最近几条，可逐条移除
+                val start = (pendingSuggestions.size - 3).coerceAtLeast(0)
+                for (i in start until pendingSuggestions.size) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "· ${pendingSuggestions[i]}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "移除该条意见",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onRemoveSuggestion(i) }
+                        )
+                    }
+                }
             }
         }
         Row(
@@ -352,8 +410,57 @@ fun ChatInputBar(
                 )
             )
             Spacer(Modifier.width(8.dp))
-            Box(Modifier.height(48.dp), contentAlignment = Alignment.Center) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 if (isStreaming) {
+                    // 流式进行中仍可发送：普通意见入队（不打断），命中重定向指令则立即打断重开一轮
+                    Surface(
+                        onClick = {
+                            if (input.isNotBlank()) {
+                                onSend(input)
+                                input = ""
+                            }
+                        },
+                        shape = RoundedCornerShape(24.dp),
+                        color = MiColors.AccentCyan.copy(alpha = 0.18f),
+                        contentColor = MiColors.AccentCyan
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "发送（排队 / 重定向）",
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                    // 暂停/继续：流式生成中可随时暂停查看现状，再决定继续或停止
+                    if (isPaused) {
+                        Surface(
+                            onClick = onResume,
+                            shape = RoundedCornerShape(24.dp),
+                            color = MiColors.AccentGreen.copy(alpha = 0.18f),
+                            contentColor = MiColors.AccentGreen
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "继续",
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    } else {
+                        Surface(
+                            onClick = onPause,
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Pause,
+                                contentDescription = "暂停",
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
                     Surface(
                         onClick = onStop,
                         shape = RoundedCornerShape(24.dp),

@@ -3,6 +3,7 @@ package com.miide.core.data.settings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -34,6 +35,8 @@ private object PrefKeys {
     val aiShowReasoning = booleanPreferencesKey("ai_show_reasoning")
     val aiShowTokenUsage = booleanPreferencesKey("ai_show_token_usage")
     val aiMaxRetries = intPreferencesKey("ai_max_retries")
+    val budgetDailyTokenLimit = longPreferencesKey("budget_daily_token_limit")
+    val budgetMonthlyCostUsd = floatPreferencesKey("budget_monthly_cost_usd")
     val terminalShell = stringPreferencesKey("terminal_shell")
     val lastOpenedProjectId = stringPreferencesKey("last_opened_project_id")
     val lastOpenedFilePath = stringPreferencesKey("last_opened_file_path")
@@ -69,6 +72,8 @@ class PreferencesManager(private val context: Context) {
             aiShowTokenUsage = prefs[PrefKeys.aiShowTokenUsage] ?: AppPreferences().aiShowTokenUsage,
             aiMaxRetries = prefs[PrefKeys.aiMaxRetries] ?: AppPreferences().aiMaxRetries,
             terminalShell = prefs[PrefKeys.terminalShell] ?: AppPreferences().terminalShell,
+            budgetDailyTokenLimit = prefs[PrefKeys.budgetDailyTokenLimit],
+            budgetMonthlyCostUsd = prefs[PrefKeys.budgetMonthlyCostUsd]?.toDouble(),
             lastOpenedProjectId = prefs[PrefKeys.lastOpenedProjectId],
             lastOpenedFilePath = prefs[PrefKeys.lastOpenedFilePath]
         )
@@ -144,6 +149,16 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setAiMaxRetries(retries: Int) {
         context.preferencesDataStore.edit { it[PrefKeys.aiMaxRetries] = retries }
+    }
+
+    /** 设置聚合网关限额（null = 不限制对应维度）。 */
+    suspend fun setBudget(dailyTokenLimit: Long?, monthlyCostUsd: Double?) {
+        context.preferencesDataStore.edit { prefs ->
+            if (dailyTokenLimit == null) prefs.remove(PrefKeys.budgetDailyTokenLimit)
+            else prefs[PrefKeys.budgetDailyTokenLimit] = dailyTokenLimit
+            if (monthlyCostUsd == null) prefs.remove(PrefKeys.budgetMonthlyCostUsd)
+            else prefs[PrefKeys.budgetMonthlyCostUsd] = monthlyCostUsd.toFloat()
+        }
     }
 
     suspend fun setLastOpenedProjectId(id: String?) {

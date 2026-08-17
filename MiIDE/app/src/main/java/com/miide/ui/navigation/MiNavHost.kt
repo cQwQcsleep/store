@@ -12,9 +12,12 @@ import com.miide.ui.ai.AiSettingsScreen
 import com.miide.ui.ai.ProviderEditScreen
 import com.miide.ui.chat.ChatScreen
 import com.miide.ui.editor.EditorScreen
+import com.miide.ui.git.GitScreen
 import com.miide.ui.home.HomeScreen
 import com.miide.ui.mcp.McpEditScreen
 import com.miide.ui.mcp.McpSettingsScreen
+import com.miide.ui.plugin.PluginMarketScreen
+import com.miide.ui.remote.RemoteScreen
 import com.miide.terminal.TerminalScreen
 
 /** 路由定义。 */
@@ -28,6 +31,9 @@ object Routes {
     const val MCP_EDIT = "mcp_edit"
     const val TERMINAL = "terminal"
     const val BROWSER = "browser"
+    const val GIT = "git"
+    const val REMOTE = "remote"
+    const val PLUGIN = "plugin"
 }
 
 @Composable
@@ -43,7 +49,31 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
                 },
                 onOpenAiSettings = { navController.navigate(Routes.AI_SETTINGS) },
                 onOpenChat = { navController.navigate(Routes.CHAT) },
-                onOpenBrowser = { navController.navigate(Routes.BROWSER) }
+                onOpenBrowser = { navController.navigate(Routes.BROWSER) },
+                onOpenGit = { navController.navigate(Routes.GIT) },
+                onOpenRemote = { navController.navigate(Routes.REMOTE) },
+                onOpenPlugin = { navController.navigate(Routes.PLUGIN) }
+            )
+        }
+
+        composable(Routes.PLUGIN) {
+            PluginMarketScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.REMOTE) {
+            RemoteScreen(
+                onBack = { navController.popBackStack() },
+                onOpenFile = { uri, name ->
+                    navController.navigate("${Routes.EDITOR}?uri=${android.net.Uri.encode(uri)}&name=${android.net.Uri.encode(name)}")
+                }
+            )
+        }
+
+        composable(Routes.GIT) {
+            GitScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

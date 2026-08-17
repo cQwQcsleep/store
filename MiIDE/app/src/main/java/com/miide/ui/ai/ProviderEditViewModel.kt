@@ -11,6 +11,7 @@ import com.miide.core.model.ChatMessage
 import com.miide.core.model.ChatRole
 import com.miide.core.model.ModelConfig
 import com.miide.core.model.ProviderConfig
+import com.miide.core.model.ProviderPresets
 import com.miide.core.model.ProviderProtocol
 import com.miide.core.model.ProviderType
 import com.miide.core.network.ProviderFactory
@@ -38,6 +39,7 @@ class ProviderEditViewModel @Inject constructor(
     var protocol by mutableStateOf(ProviderProtocol.OPENAI_COMPAT)
     var baseUrl by mutableStateOf("")
     var apiKey by mutableStateOf("")
+    var extraHeaders by mutableStateOf<Map<String, String>>(emptyMap())
     var modelsText by mutableStateOf("")
     var defaultModelId by mutableStateOf<String?>(null)
     var enabled by mutableStateOf(true)
@@ -60,6 +62,7 @@ class ProviderEditViewModel @Inject constructor(
                     protocol = c.protocol
                     baseUrl = c.baseUrl
                     apiKey = c.apiKey
+                    extraHeaders = c.extraHeaders
                     modelsText = c.models.joinToString("\n") { it.id }
                     defaultModelId = c.defaultModelId
                     enabled = c.enabled
@@ -70,13 +73,25 @@ class ProviderEditViewModel @Inject constructor(
         }
     }
 
+    /** 应用官方预设（一键配置国内主流供应商）。 */
+    fun applyPreset(preset: ProviderPresets.Preset) {
+        val config = preset.toProviderConfig()
+        name = config.name
+        type = config.type
+        protocol = config.protocol
+        baseUrl = config.baseUrl
+        extraHeaders = config.extraHeaders
+        modelsText = config.models.joinToString("\n") { it.id }
+        defaultModelId = config.defaultModelId
+    }
+
     /** 从表单构建 [ProviderConfig]。 */
     fun buildConfig(): ProviderConfig {
         val models = modelsText.lines()
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
-            .map { ModelConfig(id = it, displayName = it) }
+            .map { buildModelConfig(it) }
         val modelIds = models.map { it.id }
         val default = defaultModelId?.takeIf { it in modelIds } ?: models.firstOrNull()?.id
         return ProviderConfig(
@@ -86,11 +101,18 @@ class ProviderEditViewModel @Inject constructor(
             protocol = protocol,
             baseUrl = baseUrl.trim().trimEnd('/'),
             apiKey = apiKey.trim(),
+            extraHeaders = extraHeaders,
             models = models,
             defaultModelId = default,
             enabled = enabled,
             createdAt = createdAt
         )
+    }
+
+    /** 模型 ID → 完整 [ModelConfig]；命中预设则保留上下文/思考/计价等参数。 */
+    private fun buildModelConfig(id: String): ModelConfig {
+        val presetModel = ProviderPresets.forType(type)?.models?.firstOrNull { it.id == id }
+        return presetModel?.toModelConfig() ?: ModelConfig(id = id, displayName = id)
     }
 
     private fun validate(): String? = when {

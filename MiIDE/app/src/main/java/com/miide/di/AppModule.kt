@@ -7,18 +7,29 @@ import com.miide.core.data.local.dao.ConversationDao
 import com.miide.core.data.local.dao.MessageDao
 import com.miide.core.data.local.dao.ProjectDao
 import com.miide.core.data.local.dao.ProviderDao
+import com.miide.core.data.local.dao.PluginDao
+import com.miide.core.data.local.dao.RemoteProfileDao
 import com.miide.core.data.local.dao.UsageDao
 import com.miide.core.data.repository.ConversationRepository
+import com.miide.core.data.repository.PluginRepository
 import com.miide.core.data.repository.ProviderRepository
+import com.miide.core.data.repository.RemoteRepository
 import com.miide.core.data.repository.UsageRepository
 import com.miide.core.data.security.SecureKeyStore
 import com.miide.core.data.settings.PreferencesManager
+import com.miide.core.git.GitManager
+import com.miide.core.git.GitService
+import com.miide.core.network.AggregateGateway
+import com.miide.core.network.BudgetStats
 import com.miide.core.network.HttpClientFactory
 import com.miide.core.network.ProviderFactory
 import com.miide.core.network.ProviderGateway
 import com.miide.core.network.RetryPolicy
 import com.miide.core.network.UsageSink
 import com.miide.core.network.ContextCache
+import com.miide.core.plugin.PluginSandbox
+import com.miide.core.remote.JSchRemoteService
+import com.miide.core.remote.RemoteService
 import com.miide.core.runtime.DefaultRuntimes
 import com.miide.core.runtime.RuntimeRegistry
 import com.miide.runtime.PythonRuntime
@@ -75,6 +86,21 @@ object AppModule {
     fun provideProjectDao(db: MiDatabase): ProjectDao = db.projectDao()
 
     @Provides
+    fun provideRemoteProfileDao(db: MiDatabase): RemoteProfileDao = db.remoteProfileDao()
+
+    @Provides
+    fun providePluginDao(db: MiDatabase): PluginDao = db.pluginDao()
+
+    @Provides
+    @Singleton
+    fun providePluginRepository(dao: PluginDao, json: Json): PluginRepository =
+        PluginRepository(dao, json)
+
+    @Provides
+    @Singleton
+    fun providePluginSandbox(): PluginSandbox = PluginSandbox()
+
+    @Provides
     @Singleton
     fun provideProviderRepository(
         dao: ProviderDao,
@@ -123,6 +149,32 @@ object AppModule {
         usageSink: UsageSink,
         contextCache: ContextCache
     ): ProviderGateway = ProviderGateway(factory, retry, usageSink, contextCache)
+
+    @Provides
+    @Singleton
+    fun provideBudgetStats(repo: UsageRepository): BudgetStats = repo
+
+    @Provides
+    @Singleton
+    fun provideAggregateGateway(
+        gateway: ProviderGateway,
+        stats: BudgetStats
+    ): AggregateGateway = AggregateGateway(gateway, stats)
+
+    @Provides
+    @Singleton
+    fun provideGitService(): GitService = GitManager()
+
+    @Provides
+    @Singleton
+    fun provideRemoteRepository(
+        dao: RemoteProfileDao,
+        keyStore: SecureKeyStore
+    ): RemoteRepository = RemoteRepository(dao, keyStore)
+
+    @Provides
+    @Singleton
+    fun provideRemoteService(): RemoteService = JSchRemoteService()
 
     @Provides
     @Singleton

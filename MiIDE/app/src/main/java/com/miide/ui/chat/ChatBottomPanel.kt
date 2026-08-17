@@ -102,7 +102,27 @@ fun ChatBottomPanel(
         }
 
         ToolCallsRow(uiState.currentToolCalls)
-        uiState.usage?.let { UsageFooter(it) }
+        // 过程可见（AI 工作台）：状态/耗时/token + 动作流 + 跑马灯
+        if (uiState.isStreaming || uiState.activityLog.isNotEmpty() || uiState.elapsedMs > 0) {
+            ChatStatusBar(
+                status = uiState.currentStatus,
+                isStreaming = uiState.isStreaming,
+                elapsedMs = uiState.elapsedMs,
+                usage = uiState.usage
+            )
+            ActivityStream(uiState.activityLog)
+            TickerBar(uiState.tickerText)
+        }
+        // 改动 diff 预览：接受 / 拒绝
+        uiState.pendingDiff?.let { pending ->
+            DiffPreview(
+                pending = pending,
+                onAccept = viewModel::acceptDiff,
+                onReject = viewModel::rejectDiff
+            )
+        }
+        // 结束后展示本轮用量明细
+        if (!uiState.isStreaming) UsageFooter(uiState.usage)
         uiState.error?.let { error ->
             Text(
                 text = error,
@@ -116,8 +136,13 @@ fun ChatBottomPanel(
             onSend = { viewModel.send(it) },
             onStop = { viewModel.stop() },
             isStreaming = uiState.isStreaming,
+            isPaused = uiState.isPaused,
+            onPause = { viewModel.pause() },
+            onResume = { viewModel.resume() },
             enabled = uiState.activeProvider != null,
-            pendingCount = uiState.pendingSuggestions.size,
+            pendingSuggestions = uiState.pendingSuggestions,
+            onRemoveSuggestion = { viewModel.removeSuggestion(it) },
+            onClearPending = { viewModel.clearPending() },
             modifier = Modifier.padding(bottom = 8.dp)
         )
     }

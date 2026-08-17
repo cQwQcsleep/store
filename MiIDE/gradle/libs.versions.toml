@@ -21,6 +21,9 @@ quickjs = "1.4.6"
 luaj = "3.0.1"
 chaquopy = "17.0.0"
 termux = "v0.119.0-beta.3"
+jgit = "6.10.0.202406032230-r"
+slf4j = "1.7.36"
+jsch = "0.2.20"
 
 [libraries]
 # AndroidX 基础
@@ -73,6 +76,13 @@ chaquopy-gradle = { group = "com.chaquo.python", name = "gradle", version.ref = 
 
 # 内置虚拟终端
 termux-terminal-view = { group = "com.github.Termux.Termux-app", name = "terminal-view", version.ref = "termux" }
+
+# Git 集成（JGit 纯 Java 实现，Android 可运行）
+jgit = { group = "org.eclipse.jgit", name = "org.eclipse.jgit", version.ref = "jgit" }
+slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
+
+# 远程 SSH/SFTP（JSch 维护分支，支持 Android）
+jsch = { group = "com.github.mwiede", name = "jsch", version.ref = "jsch" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

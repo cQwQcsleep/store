@@ -29,6 +29,8 @@ kotlin {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:network"))
+    implementation(project(":core:remote"))
+    implementation(project(":core:plugin"))
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

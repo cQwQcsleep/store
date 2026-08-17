@@ -37,6 +37,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -68,6 +69,8 @@ import com.miide.browser.HtmlPreview
 import com.miide.core.editor.EditorSnapshot
 import com.miide.core.editor.EditorViewModel
 import com.miide.core.editor.MiCodeEditor
+import com.miide.ui.remote.RemoteOpenBridge
+import com.miide.ui.remote.RemoteViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,19 +91,31 @@ fun EditorScreen(
     val runViewModel: RunViewModel = hiltViewModel()
     val runState by runViewModel.state.collectAsState()
 
+    val remoteViewModel: RemoteViewModel = hiltViewModel()
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val isDark = isSystemInDarkTheme()
 
     var uri by remember { mutableStateOf(fileUri.ifBlank { null }) }
+    // 标记是否为远程文件（由 RemoteOpenBridge 桥接）
+    var isRemoteFile by remember { mutableStateOf(false) }
     // HTML 实时预览开关（仅 .html/.htm 文件显示）
     val isHtml = fileName.endsWith(".html", ignoreCase = true) || fileName.endsWith(".htm", ignoreCase = true)
     var showPreview by remember { mutableStateOf(false) }
+    // M3 分屏多窗格：编辑器 + 对话 / 终端
+    var splitPane by remember { mutableStateOf<SplitPaneMode?>(null) }
 
-    // 首次载入：按传入 URI 读取文件，否则新建空白文件
+    // 首次载入：检查远程待打开文件，否则按 URI 读取
     LaunchedEffect(fileUri) {
-        if (fileUri.isNotBlank()) {
+        val pending = RemoteOpenBridge.pending
+        if (pending != null) {
+            viewModel.openFile(pending.name, pending.content)
+            RemoteOpenBridge.active = pending
+            RemoteOpenBridge.pending = null
+            isRemoteFile = true
+        } else if (fileUri.isNotBlank()) {
             val content = EditorFileIo.read(context, Uri.parse(fileUri)).orEmpty()
             viewModel.openFile(initialName, content)
         } else {
@@ -131,6 +146,17 @@ fun EditorScreen(
     }
 
     fun save() {
+        if (isRemoteFile) {
+            scope.launch {
+                val result = remoteViewModel.saveActiveRemote(viewModel.text.value)
+                if (result == null) {
+                    snackbarHostState.showSnackbar("远程文件未绑定，已走本地保存")
+                    return@launch
+                }
+                snackbarHostState.showSnackbar(if (result.first) result.second else result.second)
+            }
+            return
+        }
         val target = uri
         if (target != null) {
             scope.launch {
@@ -161,8 +187,14 @@ fun EditorScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onOpenTerminal) {
-                        Icon(Icons.Default.Terminal, contentDescription = "终端")
+                    IconButton(onClick = {
+                        splitPane = if (splitPane == SplitPaneMode.TERMINAL) null else SplitPaneMode.TERMINAL
+                    }) {
+                        Icon(
+                            Icons.Default.Terminal,
+                            contentDescription = if (splitPane == SplitPaneMode.TERMINAL) "关闭终端分屏" else "终端分屏",
+                            tint = if (splitPane == SplitPaneMode.TERMINAL) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
                     }
                     IconButton(onClick = onOpenBrowser) {
                         Icon(Icons.Default.Public, contentDescription = "浏览器")
@@ -175,8 +207,14 @@ fun EditorScreen(
                             )
                         }
                     }
-                    IconButton(onClick = onOpenChat) {
-                        Icon(Icons.Default.SmartToy, contentDescription = "AI 助手")
+                    IconButton(onClick = {
+                        splitPane = if (splitPane == SplitPaneMode.CHAT) null else SplitPaneMode.CHAT
+                    }) {
+                        Icon(
+                            Icons.Default.SmartToy,
+                            contentDescription = if (splitPane == SplitPaneMode.CHAT) "关闭 AI 分屏" else "AI 分屏",
+                            tint = if (splitPane == SplitPaneMode.CHAT) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
                     }
                     IconButton(onClick = { viewModel.triggerCompletion() }) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = "手动补全")
@@ -216,11 +254,8 @@ fun EditorScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
+            // 编辑器主窗格（全屏或分屏时复用同一内容）
+            val editorPane: @Composable () -> Unit = {
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(
                         modifier = Modifier
@@ -267,6 +302,37 @@ fun EditorScreen(
                     }
                 }
             }
+
+            val pane = splitPane
+            if (pane == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) { editorPane() }
+            } else {
+                // M3 分屏多窗格：编辑 + 对话 / 编辑 + 终端
+                EditorSplitLayout(
+                    pane = pane,
+                    onExpand = {
+                        when (pane) {
+                            SplitPaneMode.CHAT -> onOpenChat()
+                            SplitPaneMode.TERMINAL -> onOpenTerminal()
+                        }
+                    },
+                    onClose = { splitPane = null },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    editor = editorPane,
+                    paneContent = {
+                        when (pane) {
+                            SplitPaneMode.CHAT -> ChatSplitPane()
+                            SplitPaneMode.TERMINAL -> TerminalSplitPane()
+                        }
+                    }
+                )
+            }
             RunOutputPanel(
                 state = runState,
                 onDismiss = { runViewModel.dismiss() }
@@ -276,7 +342,10 @@ fun EditorScreen(
 
     // 离开编辑器时注销桥接，避免 AI 对话页误插入到已销毁的视图
     DisposableEffect(Unit) {
-        onDispose { EditorBridge.register(null) }
+        onDispose {
+            EditorBridge.register(null)
+            if (isRemoteFile) RemoteOpenBridge.clear()
+        }
     }
 }
 

@@ -38,6 +38,14 @@ interface UsageDao {
 
     @Query("DELETE FROM usage_records")
     suspend fun clear()
+
+    /** 自 [from] 时刻起的累计 token（聚合网关日限额用）。 */
+    @Query("SELECT COALESCE(SUM(totalTokens), 0) FROM usage_records WHERE createdAt >= :from")
+    suspend fun sumTokensSince(from: Long): Long
+
+    /** 自 [from] 时刻起的累计成本 USD（聚合网关月预算用）。 */
+    @Query("SELECT COALESCE(SUM(costUsd), 0) FROM usage_records WHERE createdAt >= :from")
+    suspend fun sumCostSince(from: Long): Double
 }
 
 /**

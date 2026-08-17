@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -45,9 +47,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.miide.core.designsystem.components.MiCardGroup
+import com.miide.core.model.ProviderPresets
 import com.miide.core.model.ProviderProtocol
 import com.miide.core.model.ProviderType
 
@@ -137,6 +141,10 @@ fun ProviderEditScreen(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
+            }
+
+            if (providerId == null) {
+                PresetQuickAdd(onApply = { vm.applyPreset(it) })
             }
 
             MiCardGroup {
@@ -279,6 +287,64 @@ private fun PasswordField(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
     )
+}
+
+/** 一键添加官方预设：横向滚动供应商 chips，点击即填充表单。 */
+@Composable
+private fun PresetQuickAdd(onApply: (ProviderPresets.Preset) -> Unit) {
+    Column(Modifier.padding(vertical = 8.dp)) {
+        Text(
+            text = "官方预设 · 一键配置",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "选择国内主流供应商，自动填入官方 Base URL 与默认模型",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        LazyRow(
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(ProviderPresets.all, key = { it.type.name }) { preset ->
+                val tint = when (preset.type) {
+                    ProviderType.DEEPSEEK -> com.miide.core.designsystem.theme.MiColors.AccentBlue
+                    ProviderType.ZHIPU_GLM -> com.miide.core.designsystem.theme.MiColors.AccentCyan
+                    ProviderType.KIMI -> com.miide.core.designsystem.theme.MiColors.AccentViolet
+                    ProviderType.QWEN -> com.miide.core.designsystem.theme.MiColors.AccentOrange
+                    else -> com.miide.core.designsystem.theme.MiColors.AccentGreen
+                }
+                Surface(
+                    onClick = { onApply(preset) },
+                    shape = MaterialTheme.shapes.medium,
+                    color = tint.copy(alpha = 0.14f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = preset.type.displayName.take(1),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = tint
+                        )
+                        Text(
+                            text = preset.name,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = tint
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** 通用下拉选择器。 */
