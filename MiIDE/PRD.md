@@ -64,7 +64,7 @@
 - [x] 幽灵补全（自动触发 + 手动触发两种模式）
 - [x] function calling + MCP 客户端
 - [x] 内置精简运行时：Python（Chaquopy）+ JS（QuickJS）+ Lua（LuaJ），Ruby/C 等评估后扩展
-- [ ] 内置虚拟终端（Termux 可选增强）
+- [x] 内置虚拟终端（Termux terminal-view/emulator + 沙箱 shell 子进程）
 - [x] AI 生成代码「一键运行」闭环
 - [ ] 上下文缓存 / 提示词缓存优化（提升缓存命中率）
 - [ ] **内置浏览器**（四项能力）：

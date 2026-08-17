@@ -14,6 +14,7 @@ import com.miide.ui.editor.EditorScreen
 import com.miide.ui.home.HomeScreen
 import com.miide.ui.mcp.McpEditScreen
 import com.miide.ui.mcp.McpSettingsScreen
+import com.miide.terminal.TerminalScreen
 
 /** 路由定义。 */
 object Routes {
@@ -24,6 +25,7 @@ object Routes {
     const val CHAT = "chat"
     const val MCP_SETTINGS = "mcp_settings"
     const val MCP_EDIT = "mcp_edit"
+    const val TERMINAL = "terminal"
 }
 
 @Composable
@@ -101,6 +103,12 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
             )
         }
 
+        composable(Routes.TERMINAL) {
+            TerminalScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable(
             route = "${Routes.EDITOR}?uri={uri}&name={name}",
             arguments = listOf(
@@ -114,7 +122,8 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
                 fileUri = uri,
                 initialName = name,
                 onBack = { navController.popBackStack() },
-                onOpenChat = { navController.navigate(Routes.CHAT) }
+                onOpenChat = { navController.navigate(Routes.CHAT) },
+                onOpenTerminal = { navController.navigate(Routes.TERMINAL) }
             )
         }
     }

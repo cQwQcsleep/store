@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -72,6 +73,7 @@ fun EditorScreen(
     initialName: String,
     onBack: () -> Unit,
     onOpenChat: () -> Unit = {},
+    onOpenTerminal: () -> Unit = {},
     viewModel: EditorViewModel = viewModel()
 ) {
     val text by viewModel.text.collectAsState()
@@ -151,6 +153,9 @@ fun EditorScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onOpenTerminal) {
+                        Icon(Icons.Default.Terminal, contentDescription = "终端")
+                    }
                     IconButton(onClick = onOpenChat) {
                         Icon(Icons.Default.SmartToy, contentDescription = "AI 助手")
                     }

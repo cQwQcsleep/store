@@ -93,5 +93,8 @@ dependencies {
     implementation(libs.rosemoe.editor)
     implementation(libs.rosemoe.language.textmate)
 
+    // 内置虚拟终端
+    implementation(libs.termux.terminal.view)
+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
