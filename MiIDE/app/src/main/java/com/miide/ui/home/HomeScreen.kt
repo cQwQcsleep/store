@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
@@ -48,6 +49,7 @@ fun HomeScreen(
     onOpenFile: (uri: String, name: String) -> Unit,
     onOpenAiSettings: () -> Unit,
     onOpenChat: () -> Unit,
+    onOpenBrowser: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -121,6 +123,13 @@ fun HomeScreen(
                         title = "AI 设置",
                         subtitle = "配置 AI 供应商与模型",
                         onClick = onOpenAiSettings
+                    )
+                    HomeActionItem(
+                        icon = Icons.Default.Public,
+                        tint = MiColors.AccentBlue,
+                        title = "浏览器",
+                        subtitle = "网页浏览 / 实时预览 / DevTools",
+                        onClick = onOpenBrowser
                     )
                 }
 

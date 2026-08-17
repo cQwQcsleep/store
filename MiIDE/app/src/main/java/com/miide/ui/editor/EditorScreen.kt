@@ -27,9 +27,12 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -61,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.miide.browser.HtmlPreview
 import com.miide.core.editor.EditorSnapshot
 import com.miide.core.editor.EditorViewModel
 import com.miide.core.editor.MiCodeEditor
@@ -74,6 +78,7 @@ fun EditorScreen(
     onBack: () -> Unit,
     onOpenChat: () -> Unit = {},
     onOpenTerminal: () -> Unit = {},
+    onOpenBrowser: () -> Unit = {},
     viewModel: EditorViewModel = viewModel()
 ) {
     val text by viewModel.text.collectAsState()
@@ -89,6 +94,9 @@ fun EditorScreen(
     val isDark = isSystemInDarkTheme()
 
     var uri by remember { mutableStateOf(fileUri.ifBlank { null }) }
+    // HTML 实时预览开关（仅 .html/.htm 文件显示）
+    val isHtml = fileName.endsWith(".html", ignoreCase = true) || fileName.endsWith(".htm", ignoreCase = true)
+    var showPreview by remember { mutableStateOf(false) }
 
     // 首次载入：按传入 URI 读取文件，否则新建空白文件
     LaunchedEffect(fileUri) {
@@ -156,6 +164,17 @@ fun EditorScreen(
                     IconButton(onClick = onOpenTerminal) {
                         Icon(Icons.Default.Terminal, contentDescription = "终端")
                     }
+                    IconButton(onClick = onOpenBrowser) {
+                        Icon(Icons.Default.Public, contentDescription = "浏览器")
+                    }
+                    if (isHtml) {
+                        IconButton(onClick = { showPreview = !showPreview }) {
+                            Icon(
+                                if (showPreview) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showPreview) "关闭预览" else "实时预览"
+                            )
+                        }
+                    }
                     IconButton(onClick = onOpenChat) {
                         Icon(Icons.Default.SmartToy, contentDescription = "AI 助手")
                     }
@@ -202,34 +221,51 @@ fun EditorScreen(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                MiCodeEditor(
-                    text = text,
-                    fileName = fileName,
-                    darkTheme = isDark,
-                    readOnly = false,
-                    showLineNumber = true,
-                    fontSize = 14f,
-                    tabWidth = 4,
-                    wordWrap = false,
-                    onEditorReady = { controller ->
-                        viewModel.attach(controller)
-                        EditorBridge.register(controller)
-                    },
-                    onStateChange = { state ->
-                        viewModel.onSnapshotChanged(
-                            EditorSnapshot(
-                                cursorLine = state.cursorLine,
-                                cursorColumn = state.cursorColumn,
-                                canUndo = state.canUndo,
-                                canRedo = state.canRedo,
-                                lineCount = state.lineCount,
-                                charCount = state.charCount,
-                                ghostActive = state.ghostActive
-                            )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(if (showPreview && isHtml) 0.5f else 1f)
+                    ) {
+                        MiCodeEditor(
+                            text = text,
+                            fileName = fileName,
+                            darkTheme = isDark,
+                            readOnly = false,
+                            showLineNumber = true,
+                            fontSize = 14f,
+                            tabWidth = 4,
+                            wordWrap = false,
+                            onEditorReady = { controller ->
+                                viewModel.attach(controller)
+                                EditorBridge.register(controller)
+                            },
+                            onStateChange = { state ->
+                                viewModel.onSnapshotChanged(
+                                    EditorSnapshot(
+                                        cursorLine = state.cursorLine,
+                                        cursorColumn = state.cursorColumn,
+                                        canUndo = state.canUndo,
+                                        canRedo = state.canRedo,
+                                        lineCount = state.lineCount,
+                                        charCount = state.charCount,
+                                        ghostActive = state.ghostActive
+                                    )
+                                )
+                            },
+                            onTextChange = { newText -> viewModel.onTextChanged(newText) }
                         )
-                    },
-                    onTextChange = { newText -> viewModel.onTextChanged(newText) }
-                )
+                    }
+                    if (showPreview && isHtml) {
+                        // HTML 实时预览：内容变化自动刷新
+                        HtmlPreview(
+                            html = text,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(0.5f)
+                        )
+                    }
+                }
             }
             RunOutputPanel(
                 state = runState,

@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.miide.browser.BrowserScreen
 import com.miide.ui.ai.AiSettingsScreen
 import com.miide.ui.ai.ProviderEditScreen
 import com.miide.ui.chat.ChatScreen
@@ -26,6 +27,7 @@ object Routes {
     const val MCP_SETTINGS = "mcp_settings"
     const val MCP_EDIT = "mcp_edit"
     const val TERMINAL = "terminal"
+    const val BROWSER = "browser"
 }
 
 @Composable
@@ -40,7 +42,8 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
                     navController.navigate("${Routes.EDITOR}?uri=${android.net.Uri.encode(uri)}&name=${android.net.Uri.encode(name)}")
                 },
                 onOpenAiSettings = { navController.navigate(Routes.AI_SETTINGS) },
-                onOpenChat = { navController.navigate(Routes.CHAT) }
+                onOpenChat = { navController.navigate(Routes.CHAT) },
+                onOpenBrowser = { navController.navigate(Routes.BROWSER) }
             )
         }
 
@@ -109,6 +112,13 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
             )
         }
 
+        composable(Routes.BROWSER) {
+            BrowserScreen(
+                onBack = { navController.popBackStack() },
+                onOpenChat = { navController.navigate(Routes.CHAT) }
+            )
+        }
+
         composable(
             route = "${Routes.EDITOR}?uri={uri}&name={name}",
             arguments = listOf(
@@ -123,7 +133,8 @@ fun MiNavHost(navController: NavHostController = rememberNavController()) {
                 initialName = name,
                 onBack = { navController.popBackStack() },
                 onOpenChat = { navController.navigate(Routes.CHAT) },
-                onOpenTerminal = { navController.navigate(Routes.TERMINAL) }
+                onOpenTerminal = { navController.navigate(Routes.TERMINAL) },
+                onOpenBrowser = { navController.navigate(Routes.BROWSER) }
             )
         }
     }

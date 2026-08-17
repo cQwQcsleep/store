@@ -44,6 +44,11 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
 
+    // 消费「交给 AI」待发消息（如浏览器抓取当前页），打开后自动发送
+    LaunchedEffect(Unit) {
+        AiAskBridge.consume()?.let { viewModel.send(it) }
+    }
+
     // 新消息 / 流式增量时自动滚到底部
     LaunchedEffect(uiState.messages.size, uiState.messages.lastOrNull()?.content?.length) {
         val last = uiState.messages.lastIndex

@@ -1,6 +1,8 @@
 package com.miide.tools.builtin
 
+import com.miide.browser.WebFetchTool
 import com.miide.tools.AgentTool
+import io.ktor.client.HttpClient
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
@@ -113,10 +115,12 @@ class ListDirTool : AgentTool {
 /** 注册全部内置工具。 */
 fun registerBuiltinTools(
     registry: com.miide.tools.ToolRegistry,
-    runtimeRegistry: com.miide.core.runtime.RuntimeRegistry
+    runtimeRegistry: com.miide.core.runtime.RuntimeRegistry,
+    httpClient: io.ktor.client.HttpClient
 ) {
     registry.register(ReadFileTool())
     registry.register(WriteFileTool())
     registry.register(ListDirTool())
     registry.register(RunCodeTool(runtimeRegistry))
+    registry.register(WebFetchTool(httpClient))
 }

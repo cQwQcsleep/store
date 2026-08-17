@@ -126,8 +126,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideToolRegistry(runtimeRegistry: RuntimeRegistry): ToolRegistry =
-        ToolRegistry().also { registerBuiltinTools(it, runtimeRegistry) }
+    fun provideToolRegistry(
+        runtimeRegistry: RuntimeRegistry,
+        client: HttpClient
+    ): ToolRegistry =
+        ToolRegistry().also { registerBuiltinTools(it, runtimeRegistry, client) }
 
     @Provides
     @Singleton
