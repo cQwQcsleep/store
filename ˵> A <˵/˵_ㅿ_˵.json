@@ -15,24 +15,21 @@
             {
                 "type": "udp",
                 "tag": "DNS-RESOLVER",
-                "server": "223.5.5.5",
-                "detour": "Direct"
+                "server": "223.5.5.5"
             },
             {
                 "type": "https",
                 "tag": "DNS-PROXY",
                 "server": "223.5.5.5",
                 "path": "/dns-query",
-                "domain_resolver": "DNS-RESOLVER",
-                "detour": "Direct"
+                "domain_resolver": "DNS-RESOLVER"
             },
             {
                 "type": "https",
                 "tag": "DNS-DIRECT",
                 "server": "dns.alidns.com",
                 "path": "/dns-query",
-                "domain_resolver": "DNS-RESOLVER",
-                "detour": "Direct"
+                "domain_resolver": "DNS-RESOLVER"
             },
             {
                 "type": "fakeip",
@@ -45,16 +42,14 @@
                 "tag": "DNS-GOOGLEFCM",
                 "server": "223.5.5.5",
                 "path": "/dns-query",
-                "domain_resolver": "DNS-RESOLVER",
-                "detour": "Direct"
+                "domain_resolver": "DNS-RESOLVER"
             },
             {
                 "type": "https",
                 "tag": "DNS-GOOGLE",
                 "server": "223.5.5.5",
                 "path": "/dns-query",
-                "domain_resolver": "DNS-RESOLVER",
-                "detour": "Direct"
+                "domain_resolver": "DNS-RESOLVER"
             }
         ],
         "strategy": "ipv4_only",
