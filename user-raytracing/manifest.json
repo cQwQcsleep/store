@@ -1,0 +1,15 @@
+{
+	"name": "raytracing",
+	"namespace": "user",
+	"version_number": "0.1.0",
+	"description": "Fragment-shader software path tracing for nophenia (GL Compatibility). Fullscreen BVH ray tracer with a Cornell-box test scene (metal/glossy/glass materials), direct sun with shadow ray, Reinhard tonemapping + gamma, temporal accumulation, and optional live scene probing.",
+	"website_url": "",
+	"dependencies": [],
+	"extra": {
+		"godot": {
+			"authors": ["user"],
+			"compatible_game_version": ["0.0.1", "1.0.0", "1.0.1", "1.0.2"],
+			"compatible_mod_loader_version": ["7.0.1"]
+		}
+	}
+}
