@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
     private CheckBox cbAutoHide;
     private CheckBox cbVoice;
     private EditText etVoiceDelay;
-    private static final int DEFAULT_VOICE_DELAY = 750;
+    private static final int DEFAULT_VOICE_DELAY = 1500;
     private CatConfig config;
     private EditText etAppendText;
     private EditText etCustomEmoticons;
@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
         this.etVoiceDelay.setInputType(2); // TYPE_CLASS_NUMBER
         this.etVoiceDelay.setBackgroundColor(-1);
         this.etVoiceDelay.setPadding(16, 12, 72, 12);
-        android.text.SpannableString delayHint = new android.text.SpannableString("延迟范围0-3000ms，默认750ms");
+        android.text.SpannableString delayHint = new android.text.SpannableString("延迟范围0-3000ms，默认1500ms");
         delayHint.setSpan(new android.text.style.AbsoluteSizeSpan(12, true), 0, delayHint.length(), 0);
         this.etVoiceDelay.setHint(delayHint);
         this.etVoiceDelay.setText(String.valueOf(this.config.voiceDelayMs));
@@ -474,7 +474,7 @@ public class MainActivity extends Activity {
                 int delay = Integer.parseInt(this.etVoiceDelay.getText().toString().trim());
                 this.config.voiceDelayMs = Math.max(0, Math.min(3000, delay));
             } catch (Exception ignore) {
-                // 非法输入保持原值或默认 750
+                // 非法输入保持原值或默认 1500
                 this.config.voiceDelayMs = DEFAULT_VOICE_DELAY;
             }
             this.config.processingMode = this.rbRealtime.isChecked() ? CatConfig.MODE_REALTIME : CatConfig.MODE_PUNCTUATION;

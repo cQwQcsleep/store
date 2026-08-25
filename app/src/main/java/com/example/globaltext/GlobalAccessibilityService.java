@@ -33,7 +33,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AtomicLong writeGen = new AtomicLong(0);
     private Runnable voiceTask;
-    private int voiceDelayMs = 750;
+    private int voiceDelayMs = 1500;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {

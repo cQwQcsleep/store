@@ -50,7 +50,7 @@ public class CatConfig {
     public boolean enableRuleYou = true;
     public boolean enableAutoHide = false;
     public boolean enableVoice = false;
-    public int voiceDelayMs = 750;
+    public int voiceDelayMs = 1500;
     public String[] customEmoticons = new String[0];
     public List<Rule> rules = new ArrayList<>();
 
@@ -110,7 +110,7 @@ public class CatConfig {
         cfg.enableRuleYou = sp.getBoolean(KEY_ENABLE_RULE_YOU, true);
         cfg.enableAutoHide = sp.getBoolean(KEY_ENABLE_AUTO_HIDE, false);
         cfg.enableVoice = sp.getBoolean(KEY_ENABLE_VOICE, false);
-        cfg.voiceDelayMs = sp.getInt(KEY_VOICE_DELAY, 750);
+        cfg.voiceDelayMs = sp.getInt(KEY_VOICE_DELAY, 1500);
 
         String rulesStr = sp.getString(KEY_RULES, "");
         if (rulesStr != null && !rulesStr.trim().isEmpty()) {
