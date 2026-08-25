@@ -167,36 +167,64 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        LinearLayout voiceInputRow = new LinearLayout(this);
-        voiceInputRow.setOrientation(0);
-        voiceInputRow.setGravity(16);
+        // 改写延迟输入框：白框与断句追加一致，重置置于框内右端（灰、非加粗）
         this.etVoiceDelay = new EditText(this);
         this.etVoiceDelay.setInputType(2); // TYPE_CLASS_NUMBER
         this.etVoiceDelay.setBackgroundColor(-1);
-        this.etVoiceDelay.setPadding(16, 12, 16, 12);
-        this.etVoiceDelay.setHint("改写延迟（毫秒），0-3000，默认750");
+        this.etVoiceDelay.setPadding(16, 12, 72, 12);
+        this.etVoiceDelay.setHint("延迟范围0-3000ms，默认750ms");
         this.etVoiceDelay.setText(String.valueOf(this.config.voiceDelayMs));
         this.etVoiceDelay.setEnabled(this.config.enableVoice); // 默认不可修改，开启语音模式可修改
-        this.etVoiceDelay.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1.0f));
-        voiceInputRow.addView(this.etVoiceDelay);
+        // 范围限制：超过 3000 立即回填 3000；空值由保存逻辑取默认
+        this.etVoiceDelay.addTextChangedListener(new android.text.TextWatcher() {
+            private boolean self = false;
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+            }
+            @Override
+            public void afterTextChanged(android.text.Editable e) {
+                if (this.self) {
+                    return;
+                }
+                String raw = e.toString();
+                if (raw.isEmpty()) {
+                    return;
+                }
+                try {
+                    int v = Integer.parseInt(raw);
+                    if (v > 3000) {
+                        this.self = true;
+                        e.replace(0, e.length(), "3000");
+                        android.text.Selection.setSelection(e, e.length());
+                        this.self = false;
+                    }
+                } catch (Exception ignore) {
+                }
+            }
+        });
+        android.widget.FrameLayout voiceBox = new android.widget.FrameLayout(this);
+        LinearLayout.LayoutParams vBoxLp = new LinearLayout.LayoutParams(-1, -2);
+        vBoxLp.setMargins(0, 0, 0, 4);
+        voiceBox.setLayoutParams(vBoxLp);
+        this.etVoiceDelay.setLayoutParams(new android.widget.FrameLayout.LayoutParams(-1, -2));
+        voiceBox.addView(this.etVoiceDelay);
         TextView voiceReset = new TextView(this);
         voiceReset.setText("重置");
-        voiceReset.setTextSize(14.0f);
-        voiceReset.setTypeface(Typeface.DEFAULT_BOLD);
-        voiceReset.setTextColor(Color.rgb(255, 111, 0));
+        voiceReset.setTextSize(12.0f);
+        voiceReset.setTextColor(Color.rgb(136, 136, 136));
         voiceReset.setGravity(17);
-        voiceReset.setPadding(16, 0, 0, 0);
+        voiceReset.setPadding(0, 0, 12, 0);
         voiceReset.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 MainActivity.this.etVoiceDelay.setText(String.valueOf(DEFAULT_VOICE_DELAY));
             }
         });
-        voiceInputRow.addView(voiceReset);
-        LinearLayout.LayoutParams voiceRowLp = new LinearLayout.LayoutParams(-1, -2);
-        voiceRowLp.setMargins(0, 0, 0, 4);
-        voiceInputRow.setLayoutParams(voiceRowLp);
-        root.addView(voiceInputRow);
+        voiceBox.addView(voiceReset, new android.widget.FrameLayout.LayoutParams(-2, -2, 21)); // RIGHT|CENTER_VERTICAL
+        root.addView(voiceBox);
         this.cbEmoticon = addCheckbox(root, "句末颜文字", "在消息末尾附加随机颜文字", this.config.enableRandomEmoticon);
         this.cbGlobal = addCheckbox(root, "全局改写（所有应用）", "开启后对任意应用的输入框生效；关闭时仅处理 QQ", this.config.globalRewrite);
         this.cbContinuous = addCheckbox(root, "连续输入", "输入内容不停累积补到句末，遇标点/空格/换行/emoji 结算", this.config.enableContinuous);
