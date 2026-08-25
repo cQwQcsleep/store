@@ -157,60 +157,52 @@ public class MainActivity extends Activity {
         etLp1.setMargins(0, 0, 0, 4);
         this.etAppendText.setLayoutParams(etLp1);
         root.addView(this.etAppendText);
-        this.cbEmoticon = addCheckbox(root, "句末颜文字", "在消息末尾附加随机颜文字", this.config.enableRandomEmoticon);
-        this.cbGlobal = addCheckbox(root, "全局改写（所有应用）", "开启后对任意应用的输入框生效；关闭时仅处理 QQ", this.config.globalRewrite);
-        this.cbContinuous = addCheckbox(root, "连续输入", "输入内容不停累积补到句末，遇标点/空格/换行/emoji 结算", this.config.enableContinuous);
-        this.cbRuleI = addCheckbox(root, "替换：我→本喵", "把输入中的“我”替换为“本喵”", this.config.enableRuleI);
-        this.cbRuleYou = addCheckbox(root, "替换：你→主人", "把输入中的“你”替换为“主人”", this.config.enableRuleYou);
-        this.cbAutoHide = addCheckbox(root, "后台自动隐藏", "失去前台焦点时关闭并移出最近任务，不在后台出现", this.config.enableAutoHide);
-        // 语音模式：开关 + 改写延时输入框（默认不可改，开启语音模式后可改）+ 重置
-        LinearLayout voiceRow = new LinearLayout(this);
-        voiceRow.setOrientation(0);
-        voiceRow.setPadding(0, 8, 0, 8);
-        voiceRow.setGravity(16);
-        this.cbVoice = new CheckBox(this);
-        this.cbVoice.setText("语音模式");
-        this.cbVoice.setTextSize(16.0f);
-        this.cbVoice.setTextColor(Color.rgb(51, 51, 51));
-        this.cbVoice.setChecked(this.config.enableVoice);
+        // 语音模式：开关（统一样式）+ 改写延时输入框（默认不可改，开启语音模式后可改）+ 重置
+        this.cbVoice = addCheckbox(root, "语音模式", "增加改写延迟，防止改写打断语音输入", this.config.enableVoice);
         this.cbVoice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                MainActivity.this.etVoiceDelay.setEnabled(isChecked);
+                if (MainActivity.this.etVoiceDelay != null) {
+                    MainActivity.this.etVoiceDelay.setEnabled(isChecked);
+                }
             }
         });
-        voiceRow.addView(this.cbVoice);
-        TextView voiceDesc = new TextView(this);
-        voiceDesc.setText("  语音流式输入时不改写，停顿后一次性改写。延时：");
-        voiceDesc.setTextSize(13.0f);
-        voiceDesc.setTextColor(Color.rgb(136, 136, 136));
-        voiceRow.addView(voiceDesc);
+        LinearLayout voiceInputRow = new LinearLayout(this);
+        voiceInputRow.setOrientation(0);
+        voiceInputRow.setGravity(16);
         this.etVoiceDelay = new EditText(this);
         this.etVoiceDelay.setInputType(2); // TYPE_CLASS_NUMBER
+        this.etVoiceDelay.setBackgroundColor(-1);
+        this.etVoiceDelay.setPadding(16, 12, 16, 12);
+        this.etVoiceDelay.setHint("改写延迟（毫秒），0-3000，默认750");
         this.etVoiceDelay.setText(String.valueOf(this.config.voiceDelayMs));
         this.etVoiceDelay.setEnabled(this.config.enableVoice); // 默认不可修改，开启语音模式可修改
-        LinearLayout.LayoutParams delayLp = new LinearLayout.LayoutParams(96, -2);
-        this.etVoiceDelay.setLayoutParams(delayLp);
-        voiceRow.addView(this.etVoiceDelay);
-        TextView msText = new TextView(this);
-        msText.setText(" ms(0-3000)");
-        msText.setTextSize(13.0f);
-        msText.setTextColor(Color.rgb(136, 136, 136));
-        voiceRow.addView(msText);
-        Button voiceReset = new Button(this);
+        this.etVoiceDelay.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1.0f));
+        voiceInputRow.addView(this.etVoiceDelay);
+        TextView voiceReset = new TextView(this);
         voiceReset.setText("重置");
-        voiceReset.setTextSize(13.0f);
+        voiceReset.setTextSize(14.0f);
+        voiceReset.setTypeface(Typeface.DEFAULT_BOLD);
         voiceReset.setTextColor(Color.rgb(255, 111, 0));
-        voiceReset.setBackgroundColor(-1);
-        voiceReset.setPadding(16, 6, 16, 6);
+        voiceReset.setGravity(17);
+        voiceReset.setPadding(16, 0, 0, 0);
         voiceReset.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 MainActivity.this.etVoiceDelay.setText(String.valueOf(DEFAULT_VOICE_DELAY));
             }
         });
-        voiceRow.addView(voiceReset);
-        root.addView(voiceRow);
+        voiceInputRow.addView(voiceReset);
+        LinearLayout.LayoutParams voiceRowLp = new LinearLayout.LayoutParams(-1, -2);
+        voiceRowLp.setMargins(0, 0, 0, 4);
+        voiceInputRow.setLayoutParams(voiceRowLp);
+        root.addView(voiceInputRow);
+        this.cbEmoticon = addCheckbox(root, "句末颜文字", "在消息末尾附加随机颜文字", this.config.enableRandomEmoticon);
+        this.cbGlobal = addCheckbox(root, "全局改写（所有应用）", "开启后对任意应用的输入框生效；关闭时仅处理 QQ", this.config.globalRewrite);
+        this.cbContinuous = addCheckbox(root, "连续输入", "输入内容不停累积补到句末，遇标点/空格/换行/emoji 结算", this.config.enableContinuous);
+        this.cbRuleI = addCheckbox(root, "替换：我→本喵", "把输入中的“我”替换为“本喵”", this.config.enableRuleI);
+        this.cbRuleYou = addCheckbox(root, "替换：你→主人", "把输入中的“你”替换为“主人”", this.config.enableRuleYou);
+        this.cbAutoHide = addCheckbox(root, "后台自动隐藏", "失去前台焦点时关闭并移出最近任务，不在后台出现", this.config.enableAutoHide);
 
         TextView ruleTitle = new TextView(this);
         ruleTitle.setText("文本替换规则");
