@@ -29,6 +29,7 @@ public class MainActivity extends Activity {
     private CheckBox cbContinuous;
     private CheckBox cbRuleI;
     private CheckBox cbRuleYou;
+    private CheckBox cbAutoHide;
     private CatConfig config;
     private EditText etAppendText;
     private EditText etCustomEmoticons;
@@ -158,6 +159,7 @@ public class MainActivity extends Activity {
         this.cbContinuous = addCheckbox(root, "连续输入", "输入内容不停累积补到句末，遇标点/空格/换行/emoji 结算", this.config.enableContinuous);
         this.cbRuleI = addCheckbox(root, "替换：我→本喵", "把输入中的“我”替换为“本喵”", this.config.enableRuleI);
         this.cbRuleYou = addCheckbox(root, "替换：你→主人", "把输入中的“你”替换为“主人”", this.config.enableRuleYou);
+        this.cbAutoHide = addCheckbox(root, "后台自动隐藏", "失去前台焦点（按 Home/切应用/锁屏）时自动隐藏回后台", this.config.enableAutoHide);
 
         TextView ruleTitle = new TextView(this);
         ruleTitle.setText("文本替换规则");
@@ -264,6 +266,18 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         updateServiceStatus();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        if (hasWindowFocus || this.config == null || !this.config.enableAutoHide) {
+            return;
+        }
+        // 失去前台焦点（按 Home/切应用/锁屏）且开启了自动隐藏时，隐藏回后台
+        if (!isFinishing() && !isChangingConfigurations()) {
+            moveTaskToBack(true);
+        }
     }
 
     private void updateServiceStatus() {
@@ -380,6 +394,7 @@ public class MainActivity extends Activity {
             this.config.enableContinuous = this.cbContinuous.isChecked();
             this.config.enableRuleI = this.cbRuleI.isChecked();
             this.config.enableRuleYou = this.cbRuleYou.isChecked();
+            this.config.enableAutoHide = this.cbAutoHide.isChecked();
             this.config.processingMode = this.rbRealtime.isChecked() ? CatConfig.MODE_REALTIME : CatConfig.MODE_PUNCTUATION;
 
             ArrayList<CatConfig.Rule> rules = new ArrayList<>();

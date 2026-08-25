@@ -18,6 +18,7 @@ public class CatConfig {
     public static final String KEY_ENABLE_CONTINUOUS = "enable_continuous";
     public static final String KEY_ENABLE_RULE_I = "enable_rule_i";
     public static final String KEY_ENABLE_RULE_YOU = "enable_rule_you";
+    public static final String KEY_ENABLE_AUTO_HIDE = "enable_auto_hide";
     public static final String MODE_PUNCTUATION = "punctuation";
     public static final String MODE_REALTIME = "realtime";
     private static final String PREFS_NAME = "cat_config";
@@ -45,6 +46,7 @@ public class CatConfig {
     public boolean enableContinuous = true;
     public boolean enableRuleI = true;
     public boolean enableRuleYou = true;
+    public boolean enableAutoHide = false;
     public String[] customEmoticons = new String[0];
     public List<Rule> rules = new ArrayList<>();
 
@@ -102,6 +104,7 @@ public class CatConfig {
         cfg.enableContinuous = sp.getBoolean(KEY_ENABLE_CONTINUOUS, true);
         cfg.enableRuleI = sp.getBoolean(KEY_ENABLE_RULE_I, true);
         cfg.enableRuleYou = sp.getBoolean(KEY_ENABLE_RULE_YOU, true);
+        cfg.enableAutoHide = sp.getBoolean(KEY_ENABLE_AUTO_HIDE, false);
 
         String rulesStr = sp.getString(KEY_RULES, "");
         if (rulesStr != null && !rulesStr.trim().isEmpty()) {
@@ -142,6 +145,7 @@ public class CatConfig {
         ed.putBoolean(KEY_ENABLE_CONTINUOUS, this.enableContinuous);
         ed.putBoolean(KEY_ENABLE_RULE_I, this.enableRuleI);
         ed.putBoolean(KEY_ENABLE_RULE_YOU, this.enableRuleYou);
+        ed.putBoolean(KEY_ENABLE_AUTO_HIDE, this.enableAutoHide);
         ed.putString(KEY_RULES, rulesToString(this.rules));
         ed.putString(KEY_CUSTOM_EMOTICONS, join(this.customEmoticons, "\n"));
         ed.apply();
