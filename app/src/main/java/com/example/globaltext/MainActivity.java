@@ -172,7 +172,9 @@ public class MainActivity extends Activity {
         this.etVoiceDelay.setInputType(2); // TYPE_CLASS_NUMBER
         this.etVoiceDelay.setBackgroundColor(-1);
         this.etVoiceDelay.setPadding(16, 12, 72, 12);
-        this.etVoiceDelay.setHint("延迟范围0-3000ms，默认750ms");
+        android.text.SpannableString delayHint = new android.text.SpannableString("延迟范围0-3000ms，默认750ms");
+        delayHint.setSpan(new android.text.style.AbsoluteSizeSpan(12, true), 0, delayHint.length(), 0);
+        this.etVoiceDelay.setHint(delayHint);
         this.etVoiceDelay.setText(String.valueOf(this.config.voiceDelayMs));
         this.etVoiceDelay.setEnabled(this.config.enableVoice); // 默认不可修改，开启语音模式可修改
         // 范围限制：超过 3000 立即回填 3000；空值由保存逻辑取默认
