@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
     private EditText etRules;
     private CheckBox rbPunctuation;
     private CheckBox rbRealtime;
+    private CheckBox rbStreaming;
     private TextView statusText;
     private Button toggleButton;
 
@@ -131,9 +132,21 @@ public class MainActivity extends Activity {
             }
         });
         modeRow.addView(this.rbRealtime);
+        this.rbStreaming = new CheckBox(this);
+        this.rbStreaming.setText("流式处理");
+        this.rbStreaming.setTextSize(16.0f);
+        this.rbStreaming.setTextColor(Color.rgb(51, 51, 51));
+        this.rbStreaming.setChecked(CatConfig.MODE_STREAMING.equals(this.config.processingMode));
+        this.rbStreaming.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                MainActivity.this.onStreamingChecked(buttonView, isChecked);
+            }
+        });
+        modeRow.addView(this.rbStreaming);
         root.addView(modeRow);
         TextView modeHint = new TextView(this);
-        modeHint.setText("标点触发：打字时只在标点处立即处理\n实时处理：每输入一个字立即处理（体验可能较快）");
+        modeHint.setText("标点触发：打字时只在标点处立即处理\n实时处理：每输入一个字立即处理（体验可能较快）\n流式处理：只对新增/修改的片段追加，删喵不会被补回");
         modeHint.setTextSize(11.0f);
         modeHint.setTextColor(Color.rgb(161, 136, 127));
         modeHint.setPadding(0, 0, 0, 16);
@@ -326,12 +339,21 @@ public class MainActivity extends Activity {
     void onPunctuationChecked(CompoundButton buttonView, boolean isChecked) {
         if (isChecked) {
             this.rbRealtime.setChecked(false);
+            this.rbStreaming.setChecked(false);
         }
     }
 
     void onRealtimeChecked(CompoundButton buttonView, boolean isChecked) {
         if (isChecked) {
             this.rbPunctuation.setChecked(false);
+            this.rbStreaming.setChecked(false);
+        }
+    }
+
+    void onStreamingChecked(CompoundButton buttonView, boolean isChecked) {
+        if (isChecked) {
+            this.rbPunctuation.setChecked(false);
+            this.rbRealtime.setChecked(false);
         }
     }
 
@@ -477,7 +499,15 @@ public class MainActivity extends Activity {
                 // 非法输入保持原值或默认 1500
                 this.config.voiceDelayMs = DEFAULT_VOICE_DELAY;
             }
-            this.config.processingMode = this.rbRealtime.isChecked() ? CatConfig.MODE_REALTIME : CatConfig.MODE_PUNCTUATION;
+            String mode;
+            if (this.rbStreaming.isChecked()) {
+                mode = CatConfig.MODE_STREAMING;
+            } else if (this.rbRealtime.isChecked()) {
+                mode = CatConfig.MODE_REALTIME;
+            } else {
+                mode = CatConfig.MODE_PUNCTUATION;
+            }
+            this.config.processingMode = mode;
 
             ArrayList<CatConfig.Rule> rules = new ArrayList<>();
             String rulesText = this.etRules.getText() == null ? "" : this.etRules.getText().toString();

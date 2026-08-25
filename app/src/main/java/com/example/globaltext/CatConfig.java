@@ -23,6 +23,7 @@ public class CatConfig {
     public static final String KEY_VOICE_DELAY = "voice_delay";
     public static final String MODE_PUNCTUATION = "punctuation";
     public static final String MODE_REALTIME = "realtime";
+    public static final String MODE_STREAMING = "streaming";
     private static final String PREFS_NAME = "cat_config";
 
     public static class Rule {

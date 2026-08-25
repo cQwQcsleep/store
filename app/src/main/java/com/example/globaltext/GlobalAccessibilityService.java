@@ -10,9 +10,12 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GlobalAccessibilityService extends AccessibilityService {
     private static final String ID_INPUT = "com.tencent.mobileqq:id/input";
@@ -27,7 +30,13 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private long lastWriteTime = 0;
     private String lastFull = "";
     private String lastSegmentWritten = "";
+    // 流式模式基线：干净原文（不含追加喵/颜文字）与上次写回结果
+    private String streamOriginal = "";
+    private String streamLastWritten = "";
     private static final int MAX_TEXT_LEN = 20000;
+    // 与 TextProcessor 一致的分句边界：标点/符号/emoji/空白/组合变音符/ZWJ
+    private static final Pattern SENTENCE_SPLIT_PATTERN = Pattern.compile("([\\p{P}\\p{S}\\s\\u200D\\p{M}]+)");
+    private final Random streamRandom = new Random();
     // 单线程 worker：仅承载纯字符串变换（TextProcessor），规避“无障碍节点必须主线程访问”的限制
     private final ExecutorService transformWorker = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -243,6 +252,192 @@ public class GlobalAccessibilityService extends AccessibilityService {
         });
     }
 
+    /** 流式替换：只维护“干净原文”基线，识别用户删除追加串则保持删除，其余从纯原文增量重写，避免堆叠 */
+    private void handleStreamingInput(AccessibilityNodeInfo inp, AccessibilityNodeInfo root, String prefix, String raw, String fullText, CatConfig cfg) {
+        long now = System.currentTimeMillis();
+        // 回显去重：与上次写回完全一致
+        if (this.lastWriteTime > 0 && now - this.lastWriteTime < 600 && fullText.equals(this.streamLastWritten)) {
+            this.lastWriteTime = 0L;
+            inp.recycle();
+            safeRecycle(root);
+            this.processing = false;
+            return;
+        }
+        // 超长文本直接忽略并释放状态
+        if (fullText.length() > MAX_TEXT_LEN) {
+            resetSegmentState();
+            inp.recycle();
+            safeRecycle(root);
+            this.processing = false;
+            return;
+        }
+        // 首次进入（或状态被重置）：以当前输入剥离后的纯文本为原文基线，直接写回
+        if (this.streamLastWritten.isEmpty()) {
+            String original = stripFull(fullText, cfg);
+            if (original == null || original.trim().isEmpty()) {
+                inp.recycle();
+                safeRecycle(root);
+                this.processing = false;
+                return;
+            }
+            this.streamOriginal = original;
+            streamRewrite(inp, root, fullText, cfg, original);
+            return;
+        }
+        // 删除识别：当前文本与上次写回相比，剥离追加串后完全相同 → 用户删了喵/颜文字，保持删除不补回
+        if (!fullText.equals(this.streamLastWritten)) {
+            String strippedNow = stripFull(fullText, cfg);
+            String strippedLast = stripFull(this.streamLastWritten, cfg);
+            if (strippedNow.equals(strippedLast)) {
+                Log.d(TAG, "流式: 检测到删除追加串，保持删除");
+                this.streamOriginal = strippedNow;
+                this.streamLastWritten = fullText;
+                inp.recycle();
+                safeRecycle(root);
+                this.processing = false;
+                return;
+            }
+        }
+        // 增量：当前文本是上次写回的扩展 → 仅把新增并入原文基线；否则是改动已改写内容 → 剥离当前文本重建原文
+        if (fullText.startsWith(this.streamLastWritten)) {
+            this.streamOriginal = this.streamOriginal + fullText.substring(this.streamLastWritten.length());
+        } else {
+            this.streamOriginal = stripFull(fullText, cfg);
+        }
+        if (this.streamOriginal == null || this.streamOriginal.trim().isEmpty()) {
+            inp.recycle();
+            safeRecycle(root);
+            this.processing = false;
+            return;
+        }
+        streamRewrite(inp, root, fullText, cfg, this.streamOriginal);
+    }
+
+    /** 在 worker 中变换，回主线程核对后写回；流式模式下复用末尾颜文字避免随机闪烁 */
+    private void streamRewrite(final AccessibilityNodeInfo inp, final AccessibilityNodeInfo root, final String fullText, final CatConfig cfg, final String original) {
+        final CatConfig cc = cfg;
+        final String prevWritten = this.streamLastWritten;
+        final long gen = this.writeGen.incrementAndGet();
+        this.transformWorker.execute(new Runnable() {
+            @Override
+            public void run() {
+                final String target = processStreaming(original, cc, prevWritten);
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (gen != writeGen.get()) {
+                            inp.recycle();
+                            safeRecycle(root);
+                            processing = false;
+                            return;
+                        }
+                        CharSequence cNow = inp.getText();
+                        if (cNow != null && !fullText.contentEquals(cNow)) {
+                            inp.recycle();
+                            safeRecycle(root);
+                            processing = false;
+                            return;
+                        }
+                        if (target.equals(fullText)) {
+                            streamLastWritten = fullText;
+                            streamOriginal = original;
+                            inp.recycle();
+                            safeRecycle(root);
+                            processing = false;
+                            return;
+                        }
+                        boolean ok = setText(inp, target);
+                        if (ok) {
+                            streamLastWritten = target;
+                            streamOriginal = original;
+                            lastWriteTime = System.currentTimeMillis();
+                        }
+                        inp.recycle();
+                        safeRecycle(root);
+                        processing = false;
+                    }
+                });
+            }
+        });
+    }
+
+    /** 流式加工：先按无颜文字规则处理，再在末尾补颜文字（优先复用上次末尾的，避免写回时随机跳变） */
+    private String processStreaming(String original, CatConfig cfg, String prevWritten) {
+        CatConfig base = cloneConfigWithoutEmoticon(cfg);
+        String text = TextProcessor.process(original, base);
+        if (!cfg.enableRandomEmoticon) {
+            return text;
+        }
+        String emote = extractTrailingEmoticon(prevWritten, cfg);
+        if (emote == null) {
+            String[] emotes = cfg.getActiveEmoticons();
+            if (emotes == null || emotes.length == 0) {
+                emotes = CatConfig.BUILTIN_EMOTICONS;
+            }
+            emote = emotes.length == 0 ? "" : emotes[this.streamRandom.nextInt(emotes.length)];
+        }
+        return (emote.isEmpty()) ? text : text + " " + emote;
+    }
+
+    /** 取上次写回结果末尾的活跃颜文字，无则返回 null */
+    private static String extractTrailingEmoticon(String text, CatConfig cfg) {
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+        String[] emotes = cfg.getActiveEmoticons();
+        if (emotes == null || emotes.length == 0) {
+            emotes = CatConfig.BUILTIN_EMOTICONS;
+        }
+        for (String em : emotes) {
+            if (em != null && !em.isEmpty() && text.endsWith(em)) {
+                return em;
+            }
+        }
+        return null;
+    }
+
+    /** 从整段文本可靠还原原文：先逐句剥离末尾追加串，再剥离颜文字/符号残留 */
+    private String stripFull(String full, CatConfig cfg) {
+        if (full == null || full.isEmpty()) {
+            return "";
+        }
+        return stripAll(stripAppendPerSentence(full, cfg), cfg).trim();
+    }
+
+    /** 逐句剥离每个文字片段末尾的追加串（如“喵”）及紧邻空格 */
+    private static String stripAppendPerSentence(String full, CatConfig cfg) {
+        String app = (cfg.appendText == null) ? "" : cfg.appendText;
+        Matcher matcher = SENTENCE_SPLIT_PATTERN.matcher(full);
+        StringBuilder out = new StringBuilder();
+        int pos = 0;
+        while (matcher.find()) {
+            String chunk = full.substring(pos, matcher.start());
+            out.append(stripSegmentTail(chunk, app));
+            out.append(matcher.group(1));
+            pos = matcher.end();
+        }
+        if (pos < full.length()) {
+            out.append(stripSegmentTail(full.substring(pos), app));
+        }
+        return out.toString();
+    }
+
+    /** 剥离一个文字片段末尾的追加串及其前面的空格 */
+    private static String stripSegmentTail(String chunk, String app) {
+        String s = chunk;
+        if (!app.isEmpty()) {
+            while (s.endsWith(app)) {
+                s = s.substring(0, s.length() - app.length());
+            }
+        }
+        // 追加串后可能跟空格（如“ 喵 ”），一并剥掉结尾空白
+        int end = s.length();
+        while (end > 0 && Character.isWhitespace(s.charAt(end - 1))) {
+            end--;
+        }
+        return s.substring(0, end);
+    }
+
     /** 从整段中剥离上一轮追加的句末文本与颜文字，得到干净原文 */
     private String stripLineAppend(String full, CatConfig cfg) {
         String seg = (full == null) ? "" : full;
@@ -258,6 +453,8 @@ public class GlobalAccessibilityService extends AccessibilityService {
         this.userOriginal = "";
         this.lastFull = "";
         this.lastSegmentWritten = "";
+        this.streamOriginal = "";
+        this.streamLastWritten = "";
     }
 
     private void resetProcessing() {
@@ -274,6 +471,8 @@ public class GlobalAccessibilityService extends AccessibilityService {
         this.lastWriteTime = 0L;
         this.lastFull = "";
         this.lastSegmentWritten = "";
+        this.streamOriginal = "";
+        this.streamLastWritten = "";
         this.cachedConfig = CatConfig.load(this);
     }
 
@@ -415,6 +614,13 @@ public class GlobalAccessibilityService extends AccessibilityService {
         if (cfg == null) {
             cfg = CatConfig.load(this);
             this.cachedConfig = cfg;
+        }
+        // 流式模式：只对新增/修改的片段加喵，已改写且未被用户改动的部分原样保留，
+        // 用户删掉追加串则保持删除（不补回），避免整体重转带来的堆叠。
+        boolean isStreaming = CatConfig.MODE_STREAMING.equals(cfg.processingMode);
+        if (isStreaming && !isSendClick) {
+            handleStreamingInput(inp, root, prefix, raw, fullText, cfg);
+            return;
         }
         // 连续输入（独立开关，默认开启，优先于标点/实时 radio）
         if (cfg.enableContinuous && !isSendClick) {
