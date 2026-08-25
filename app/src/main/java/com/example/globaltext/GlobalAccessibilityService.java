@@ -1,4 +1,4 @@
-package com.example.u7e5f3218e9;
+package com.example.globaltext;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
@@ -9,12 +9,12 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import java.util.Arrays;
 import java.util.Comparator;
 
-public class QQAccessibilityService extends AccessibilityService {
+public class GlobalAccessibilityService extends AccessibilityService {
     private static final String ID_INPUT = "com.tencent.mobileqq:id/input";
     private static final String ID_SEND = "com.tencent.mobileqq:id/send_btn";
     private static final String PKG_QQ = "com.tencent.mobileqq";
     private static final String PKG_QQI = "com.tencent.mobileqqi";
-    private static final String TAG = "QQCatSvc";
+    private static final String TAG = "GlobalCatSvc";
     private CatConfig cachedConfig;
     private String userOriginal = "";
     private String lastSet = "";
@@ -24,64 +24,75 @@ public class QQAccessibilityService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
         String pkg = e.getPackageName() != null ? e.getPackageName().toString() : "";
-        if (PKG_QQ.equals(pkg) || PKG_QQI.equals(pkg)) {
-            int type = e.getEventType();
-            if (type == 32) {
-                this.processing = false;
-                this.userOriginal = "";
-                this.lastSet = "";
-                this.lastWriteTime = 0L;
-                this.cachedConfig = CatConfig.load(this);
+        if (pkg.isEmpty()) {
+            return;
+        }
+        boolean isQQ = PKG_QQ.equals(pkg) || PKG_QQI.equals(pkg);
+        int type = e.getEventType();
+
+        if (type == 32) {
+            resetProcessing();
+            return;
+        }
+
+        CatConfig cfg = this.cachedConfig;
+        if (cfg == null) {
+            cfg = CatConfig.load(this);
+            this.cachedConfig = cfg;
+        }
+
+        if (!isQQ && !cfg.globalRewrite) {
+            // 全局改写关闭时，仅处理 QQ
+            return;
+        }
+
+        if (type == 1) {
+            AccessibilityNodeInfo src = e.getSource();
+            if (src != null) {
+                if (isQQ && ID_SEND.equals(src.getViewIdResourceName())) {
+                    Log.d(TAG, "点击发送，兜底处理");
+                    doProcess(true, true);
+                }
+                src.recycle();
+            }
+            return;
+        }
+
+        if (type == 16) {
+            String mode = cfg.processingMode != null ? cfg.processingMode : CatConfig.MODE_PUNCTUATION;
+            if (CatConfig.MODE_REALTIME.equals(mode)) {
+                doProcess(isQQ, false);
                 return;
             }
-            if (type == 1) {
-                AccessibilityNodeInfo src = e.getSource();
-                if (src != null) {
-                    String id = src.getViewIdResourceName();
-                    if (ID_SEND.equals(id)) {
-                        Log.d(TAG, "点击发送，兜底处理");
-                        doProcess(true);
-                    }
-                    src.recycle();
-                    return;
-                }
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            if (root == null) {
                 return;
             }
-            if (type == 16) {
-                CatConfig cfg = this.cachedConfig;
-                if (cfg == null) {
-                    cfg = CatConfig.load(this);
-                    this.cachedConfig = cfg;
-                }
-                String mode = cfg.processingMode != null ? cfg.processingMode : CatConfig.MODE_PUNCTUATION;
-                if (CatConfig.MODE_REALTIME.equals(mode)) {
-                    doProcess(false);
-                    return;
-                }
-                AccessibilityNodeInfo root = getRootInActiveWindow();
-                if (root == null) {
-                    return;
-                }
-                AccessibilityNodeInfo inp = findNodeById(root, ID_INPUT);
-                if (inp == null) {
-                    inp = findEditable(root);
-                }
+            AccessibilityNodeInfo inp = findInput(root, isQQ);
+            if (inp == null) {
                 root.recycle();
-                if (inp == null) {
-                    return;
-                }
-                CharSequence cs = inp.getText();
-                inp.recycle();
-                if (cs == null || cs.length() == 0) {
-                    return;
-                }
-                String raw = cs.toString().trim();
-                if (!raw.isEmpty() && isPunctuationEnding(raw)) {
-                    Log.d(TAG, "标点触发: " + raw);
-                    doProcess(false);
-                }
+                return;
+            }
+            CharSequence cs = inp.getText();
+            inp.recycle();
+            root.recycle();
+            if (cs == null || cs.length() == 0) {
+                return;
+            }
+            String raw = cs.toString().trim();
+            if (!raw.isEmpty() && isPunctuationEnding(raw)) {
+                Log.d(TAG, "标点触发: " + raw);
+                doProcess(isQQ, false);
             }
         }
+    }
+
+    private void resetProcessing() {
+        this.processing = false;
+        this.userOriginal = "";
+        this.lastSet = "";
+        this.lastWriteTime = 0L;
+        this.cachedConfig = CatConfig.load(this);
     }
 
     private boolean isPunctuationEnding(String s) {
@@ -92,7 +103,7 @@ public class QQAccessibilityService extends AccessibilityService {
         return last == 12290 || last == 65281 || last == '!' || last == 65311 || last == '?' || last == ' ';
     }
 
-    private void doProcess(boolean isSendClick) {
+    private void doProcess(boolean isQQ, boolean isSendClick) {
         if (this.processing) {
             return;
         }
@@ -102,10 +113,7 @@ public class QQAccessibilityService extends AccessibilityService {
             this.processing = false;
             return;
         }
-        AccessibilityNodeInfo inp = findNodeById(root, ID_INPUT);
-        if (inp == null) {
-            inp = findEditable(root);
-        }
+        AccessibilityNodeInfo inp = findInput(root, isQQ);
         if (inp == null) {
             root.recycle();
             this.processing = false;
@@ -144,18 +152,24 @@ public class QQAccessibilityService extends AccessibilityService {
             this.processing = false;
             return;
         }
+        // 删除优化：若当前文本是上次改写结果的严格前缀（用户删除了末尾追加的“喵”/颜文字等改写产物），
+        // 则接受删除、不再自动改写补回，直到下一次产生新的文本变动。
+        if (!this.lastSet.isEmpty() && this.lastSet.startsWith(raw)) {
+            Log.d(TAG, "后缀删除保持: lastSet=" + this.lastSet + " raw=" + raw);
+            this.userOriginal = stripAll(raw, cfg);
+            this.lastSet = raw;
+            inp.recycle();
+            root.recycle();
+            this.processing = false;
+            return;
+        }
         boolean isRealtime = CatConfig.MODE_REALTIME.equals(cfg.processingMode);
         if (!isRealtime && this.lastSet.isEmpty()) {
             this.userOriginal = stripAll(raw, cfg);
             Log.d(TAG, "标点首次剥离: " + this.userOriginal);
         } else if (this.lastSet.isEmpty() || !raw.startsWith(this.lastSet)) {
-            if (this.lastSet.isEmpty()) {
-                this.userOriginal = stripAll(raw, cfg);
-                Log.d(TAG, "首条剥离: " + this.userOriginal);
-            } else {
-                this.userOriginal = stripAll(raw, cfg);
-                Log.d(TAG, "不匹配剥离: " + this.userOriginal);
-            }
+            this.userOriginal = stripAll(raw, cfg);
+            Log.d(TAG, "不匹配剥离: " + this.userOriginal);
         } else {
             String added = raw.substring(this.lastSet.length());
             this.userOriginal += added;
@@ -191,6 +205,29 @@ public class QQAccessibilityService extends AccessibilityService {
         this.processing = false;
     }
 
+    /**
+     * 定位要处理的输入框。
+     * QQ 保留专用控件 id 定位；其它应用优先取活动窗口内获得输入焦点的可编辑节点，
+     * 找不到则退回遍历查找第一个可编辑节点。
+     */
+    private AccessibilityNodeInfo findInput(AccessibilityNodeInfo root, boolean isQQ) {
+        if (isQQ) {
+            AccessibilityNodeInfo inp = findNodeById(root, ID_INPUT);
+            if (inp == null) {
+                inp = findEditable(root);
+            }
+            return inp;
+        }
+        AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+        if (focused != null) {
+            if (focused.isEditable()) {
+                return focused;
+            }
+            focused.recycle();
+        }
+        return findEditable(root);
+    }
+
     private CatConfig cloneConfigWithoutEmoticon(CatConfig src) {
         CatConfig c = new CatConfig();
         c.enableAppend = src.enableAppend;
@@ -214,7 +251,7 @@ public class QQAccessibilityService extends AccessibilityService {
         Arrays.sort(emotes, new Comparator() {
             @Override
             public int compare(Object obj, Object obj2) {
-                return QQAccessibilityService.lambda$stripAll$0((String) obj, (String) obj2);
+                return GlobalAccessibilityService.lambda$stripAll$0((String) obj, (String) obj2);
             }
         });
         for (String em : emotes) {
@@ -235,7 +272,7 @@ public class QQAccessibilityService extends AccessibilityService {
         return result.replaceAll("\\s*[\\p{S}\\p{So}\\p{Sm}\\p{Sk}\\p{P}]{3,}\\s*", " ").trim();
     }
 
-    static  int lambda$stripAll$0(String a, String b) {
+    static int lambda$stripAll$0(String a, String b) {
         return b.length() - a.length();
     }
 
@@ -312,7 +349,7 @@ public class QQAccessibilityService extends AccessibilityService {
         i.feedbackType = 16;
         i.flags = 81;
         i.notificationTimeout = 50L;
-        i.packageNames = new String[]{PKG_QQ, PKG_QQI};
+        i.packageNames = null;
         setServiceInfo(i);
         this.cachedConfig = CatConfig.load(this);
     }

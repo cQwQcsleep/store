@@ -1,4 +1,4 @@
-package com.example.u7e5f3218e9;
+package com.example.globaltext;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.Activity;
@@ -25,6 +25,7 @@ import java.util.List;
 public class MainActivity extends Activity {
     private CheckBox cbAppend;
     private CheckBox cbEmoticon;
+    private CheckBox cbGlobal;
     private CatConfig config;
     private EditText etAppendText;
     private EditText etCustomEmoticons;
@@ -107,7 +108,7 @@ public class MainActivity extends Activity {
         this.rbPunctuation.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                MainActivity.this.m0lambda$onCreate$0$comexampleu7e5f3218e9MainActivity(buttonView, isChecked);
+                MainActivity.this.onPunctuationChecked(buttonView, isChecked);
             }
         });
         modeRow.addView(this.rbPunctuation);
@@ -119,7 +120,7 @@ public class MainActivity extends Activity {
         this.rbRealtime.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                MainActivity.this.m1lambda$onCreate$1$comexampleu7e5f3218e9MainActivity(buttonView, isChecked);
+                MainActivity.this.onRealtimeChecked(buttonView, isChecked);
             }
         });
         modeRow.addView(this.rbRealtime);
@@ -150,6 +151,7 @@ public class MainActivity extends Activity {
         this.etAppendText.setLayoutParams(etLp1);
         root.addView(this.etAppendText);
         this.cbEmoticon = addCheckbox(root, "句末颜文字", "在消息末尾附加随机颜文字", this.config.enableRandomEmoticon);
+        this.cbGlobal = addCheckbox(root, "全局改写（所有应用）", "开启后对任意应用的输入框生效；关闭时仅处理 QQ", this.config.globalRewrite);
 
         TextView ruleTitle = new TextView(this);
         ruleTitle.setText("文本替换规则");
@@ -240,13 +242,13 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
     }
 
-    void m0lambda$onCreate$0$comexampleu7e5f3218e9MainActivity(CompoundButton buttonView, boolean isChecked) {
+    void onPunctuationChecked(CompoundButton buttonView, boolean isChecked) {
         if (isChecked) {
             this.rbRealtime.setChecked(false);
         }
     }
 
-    void m1lambda$onCreate$1$comexampleu7e5f3218e9MainActivity(CompoundButton buttonView, boolean isChecked) {
+    void onRealtimeChecked(CompoundButton buttonView, boolean isChecked) {
         if (isChecked) {
             this.rbPunctuation.setChecked(false);
         }
@@ -368,6 +370,7 @@ public class MainActivity extends Activity {
             String append = this.etAppendText.getText().toString().trim();
             this.config.appendText = append.isEmpty() ? "喵" : append;
             this.config.enableRandomEmoticon = this.cbEmoticon.isChecked();
+            this.config.globalRewrite = this.cbGlobal.isChecked();
             this.config.processingMode = this.rbRealtime.isChecked() ? CatConfig.MODE_REALTIME : CatConfig.MODE_PUNCTUATION;
 
             ArrayList<CatConfig.Rule> rules = new ArrayList<>();

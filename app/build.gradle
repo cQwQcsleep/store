@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.u7e5f3218e9'
+    namespace 'com.example.globaltext'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.u7e5f3218e9"
+        applicationId "com.example.globaltext"
         minSdk 23
         targetSdk 34
         versionCode 1

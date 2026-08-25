@@ -27,7 +27,7 @@
         </activity>
 
         <service
-            android:name=".QQAccessibilityService"
+            android:name=".GlobalAccessibilityService"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>

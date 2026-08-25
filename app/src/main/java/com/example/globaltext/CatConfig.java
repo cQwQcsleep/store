@@ -1,4 +1,4 @@
-package com.example.u7e5f3218e9;
+package com.example.globaltext;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -14,6 +14,7 @@ public class CatConfig {
     public static final String KEY_ENABLE_EMOTICON = "enable_emoticon";
     public static final String KEY_CUSTOM_EMOTICONS = "custom_emoticons";
     public static final String KEY_PROCESSING_MODE = "processing_mode";
+    public static final String KEY_GLOBAL = "global_rewrite";
     public static final String MODE_PUNCTUATION = "punctuation";
     public static final String MODE_REALTIME = "realtime";
     private static final String PREFS_NAME = "cat_config";
@@ -37,6 +38,7 @@ public class CatConfig {
     public String appendText = "喵";
     public boolean enableRandomEmoticon = true;
     public String processingMode = MODE_PUNCTUATION;
+    public boolean globalRewrite = false;
     public String[] customEmoticons = new String[0];
     public List<Rule> rules = new ArrayList<>();
 
@@ -90,6 +92,7 @@ public class CatConfig {
         cfg.appendText = sp.getString(KEY_APPEND_TEXT, "喵");
         cfg.enableRandomEmoticon = sp.getBoolean(KEY_ENABLE_EMOTICON, true);
         cfg.processingMode = sp.getString(KEY_PROCESSING_MODE, MODE_PUNCTUATION);
+        cfg.globalRewrite = sp.getBoolean(KEY_GLOBAL, false);
 
         String rulesStr = sp.getString(KEY_RULES, "");
         if (rulesStr != null && !rulesStr.trim().isEmpty()) {
@@ -126,6 +129,7 @@ public class CatConfig {
         ed.putString(KEY_APPEND_TEXT, this.appendText == null ? "" : this.appendText);
         ed.putBoolean(KEY_ENABLE_EMOTICON, this.enableRandomEmoticon);
         ed.putString(KEY_PROCESSING_MODE, this.processingMode == null ? MODE_PUNCTUATION : this.processingMode);
+        ed.putBoolean(KEY_GLOBAL, this.globalRewrite);
         ed.putString(KEY_RULES, rulesToString(this.rules));
         ed.putString(KEY_CUSTOM_EMOTICONS, join(this.customEmoticons, "\n"));
         ed.apply();
