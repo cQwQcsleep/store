@@ -159,7 +159,7 @@ public class MainActivity extends Activity {
         this.cbContinuous = addCheckbox(root, "连续输入", "输入内容不停累积补到句末，遇标点/空格/换行/emoji 结算", this.config.enableContinuous);
         this.cbRuleI = addCheckbox(root, "替换：我→本喵", "把输入中的“我”替换为“本喵”", this.config.enableRuleI);
         this.cbRuleYou = addCheckbox(root, "替换：你→主人", "把输入中的“你”替换为“主人”", this.config.enableRuleYou);
-        this.cbAutoHide = addCheckbox(root, "后台自动隐藏", "失去前台焦点（按 Home/切应用/锁屏）时自动隐藏回后台", this.config.enableAutoHide);
+        this.cbAutoHide = addCheckbox(root, "后台自动隐藏", "失去前台焦点时关闭并移出最近任务，不在后台出现", this.config.enableAutoHide);
 
         TextView ruleTitle = new TextView(this);
         ruleTitle.setText("文本替换规则");
@@ -274,9 +274,10 @@ public class MainActivity extends Activity {
         if (hasWindowFocus || this.config == null || !this.config.enableAutoHide) {
             return;
         }
-        // 失去前台焦点（按 Home/切应用/锁屏）且开启了自动隐藏时，隐藏回后台
+        // 失去前台焦点（按 Home/切应用/锁屏）且开启了自动隐藏时，关闭活动并移出最近任务，
+        // 使其不出现在后台（最近任务）列表中
         if (!isFinishing() && !isChangingConfigurations()) {
-            moveTaskToBack(true);
+            finishAndRemoveTask();
         }
     }
 
