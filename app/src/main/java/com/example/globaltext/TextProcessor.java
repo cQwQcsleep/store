@@ -8,7 +8,9 @@ import java.util.regex.Pattern;
 
 public class TextProcessor {
     private static final Random RANDOM = new Random();
-    private static final Pattern SENTENCE_SPLIT_PATTERN = Pattern.compile("([，,。！!？?\\s]+)");
+    // 分隔符：标点 \p{P}、符号/emoji \p{S}、空白 \s、组合用变音符 \p{M} 与 ZWJ（\u200D）
+    // “喵”只追加到真正的文字片段后，标点/符号/emoji/空格原样保留并作为分句边界。
+    private static final Pattern SENTENCE_SPLIT_PATTERN = Pattern.compile("([\\p{P}\\p{S}\\s\\u200D\\p{M}]+)");
 
     public static String process(String original, CatConfig config) {
         if (original == null || original.trim().isEmpty()) {
@@ -48,42 +50,32 @@ public class TextProcessor {
 
     private static String appendPerSentence(String text, String suffix) {
         String s = (suffix == null) ? "" : suffix;
-        List<String> parts = new ArrayList<>();
-        List<String> separators = new ArrayList<>();
+        if (s.isEmpty()) {
+            return text;
+        }
         Matcher matcher = SENTENCE_SPLIT_PATTERN.matcher(text);
-        int lastEnd = 0;
-        while (matcher.find()) {
-            parts.add(text.substring(lastEnd, matcher.start()));
-            separators.add(matcher.group(1));
-            lastEnd = matcher.end();
-        }
-        if (lastEnd < text.length()) {
-            parts.add(text.substring(lastEnd));
-        } else if (!parts.isEmpty() && lastEnd == text.length()) {
-            parts.add("");
-        }
-        if (parts.isEmpty()) {
-            parts.add(text);
-        }
         StringBuilder result = new StringBuilder();
-        for (int i = 0; i < parts.size(); i++) {
-            String part = parts.get(i).trim();
-            if (!part.isEmpty()) {
-                result.append(part);
-                // 分句已以追加文本结尾时不重复追加（如“我→本喵”不会再叠出“本喵喵”）
-                if (!part.endsWith(s)) {
-                    result.append(s);
-                }
+        boolean sawText = false;
+        int pos = 0;
+        while (matcher.find()) {
+            String chunk = text.substring(pos, matcher.start());
+            result.append(chunk);
+            if (!chunk.trim().isEmpty() && !chunk.trim().endsWith(s)) {
+                result.append(s);
+                sawText = true;
             }
-            if (i < separators.size()) {
-                result.append(separators.get(i));
+            result.append(matcher.group(1));
+            pos = matcher.end();
+        }
+        if (pos < text.length()) {
+            String chunk = text.substring(pos);
+            result.append(chunk);
+            if (!chunk.trim().isEmpty() && !chunk.trim().endsWith(s)) {
+                result.append(s);
+                sawText = true;
             }
         }
-        String resultStr = result.toString().trim();
-        if (resultStr.isEmpty()) {
-            return text + s;
-        }
-        return resultStr;
+        return sawText ? result.toString().trim() : text.trim();
     }
 
     private static String getRandomEmoticon(CatConfig config) {
