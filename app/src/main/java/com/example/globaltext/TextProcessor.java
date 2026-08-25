@@ -16,6 +16,14 @@ public class TextProcessor {
         }
         String text = original.trim();
 
+        // 内置替换开关（默认开启）：我→本喵、你→主人，先于自定义规则应用
+        if (config.enableRuleI) {
+            text = text.replace("我", "本喵");
+        }
+        if (config.enableRuleYou) {
+            text = text.replace("你", "主人");
+        }
+
         if (config.rules != null) {
             for (CatConfig.Rule rule : config.rules) {
                 if (rule == null || rule.from.isEmpty()) {

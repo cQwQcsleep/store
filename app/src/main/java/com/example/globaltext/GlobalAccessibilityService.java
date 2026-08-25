@@ -20,6 +20,9 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private String lastSet = "";
     private boolean processing = false;
     private long lastWriteTime = 0;
+    private String lastFull = "";
+    private String lastSegmentWritten = "";
+    private static final int MAX_TEXT_LEN = 20000;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
@@ -59,6 +62,11 @@ public class GlobalAccessibilityService extends AccessibilityService {
         }
 
         if (type == 16) {
+            // 连续输入开启时：任意文本变更都实时触发（不再等待末行标点）
+            if (cfg.enableContinuous) {
+                doProcess(isQQ, false);
+                return;
+            }
             String mode = cfg.processingMode != null ? cfg.processingMode : CatConfig.MODE_PUNCTUATION;
             if (CatConfig.MODE_REALTIME.equals(mode)) {
                 doProcess(isQQ, false);
@@ -79,12 +87,101 @@ public class GlobalAccessibilityService extends AccessibilityService {
             if (cs == null || cs.length() == 0) {
                 return;
             }
-            String raw = cs.toString().trim();
-            if (!raw.isEmpty() && isPunctuationEnding(raw)) {
-                Log.d(TAG, "标点触发: " + raw);
+            String last = lastLineOf(cs.toString());
+            if (!last.isEmpty() && isPunctuationEnding(last)) {
+                Log.d(TAG, "标点触发: " + last);
                 doProcess(isQQ, false);
             }
         }
+    }
+
+    /** 连续输入处理：只改写当前（最后）段，遇标点/空格/换行/emoji 由追加逻辑结算；无法定位或前面行被改则不处理 */
+    private void handleContinuousInput(AccessibilityNodeInfo inp, AccessibilityNodeInfo root, String prefix, String raw, String fullText, CatConfig cfg) {
+        long now = System.currentTimeMillis();
+        // 回显去重：与上次写回完全一致
+        if (this.lastWriteTime > 0 && now - this.lastWriteTime < 600 && fullText.equals(this.lastFull)) {
+            this.lastWriteTime = 0L;
+            inp.recycle();
+            root.recycle();
+            this.processing = false;
+            return;
+        }
+        // 超长文本直接忽略并释放状态，避免异常存储/内存占用
+        if (fullText.length() > MAX_TEXT_LEN) {
+            resetSegmentState();
+            inp.recycle();
+            root.recycle();
+            this.processing = false;
+            return;
+        }
+        // 删除优化：末行只是上次结果的严格前缀（用户删了末尾追加内容）→ 接受删除，不补回
+        // 增加前缀一致性守卫：必须是 从上次写回结果 减掉一个后缀（lastFull.startsWith(fullText)），
+        // 避免过时(跨会话遗留)比对数据在无关/全新内容上误触发。
+        boolean fullIsPrefixOfLast = !this.lastFull.isEmpty() && this.lastFull.startsWith(fullText);
+        if (!this.lastSegmentWritten.isEmpty() && this.lastSegmentWritten.startsWith(raw) && !raw.equals(this.lastSegmentWritten) && fullIsPrefixOfLast) {
+            this.userOriginal = stripLineAppend(raw, cfg);
+            this.lastSegmentWritten = raw;
+            inp.recycle();
+            root.recycle();
+            this.processing = false;
+            return;
+        }
+        // 前面行被改（末行未变、整段却变化）→ 不进写回
+        if (!this.lastFull.isEmpty() && raw.equals(this.lastSegmentWritten) && !fullText.equals(this.lastFull)) {
+            inp.recycle();
+            root.recycle();
+            this.processing = false;
+            return;
+        }
+        // 严格增量：持续输入则把新增字符并入原文；上下文变更（非上次结果扩展）则丢弃旧比对数据后重建
+        if (!this.lastFull.isEmpty() && fullText.startsWith(this.lastFull)) {
+            this.userOriginal = this.userOriginal + fullText.substring(this.lastFull.length());
+        } else {
+            this.userOriginal = stripLineAppend(fullText, cfg);
+            this.lastFull = "";
+            this.lastSegmentWritten = "";
+        }
+        if (this.userOriginal == null || this.userOriginal.trim().isEmpty()) {
+            inp.recycle();
+            root.recycle();
+            this.processing = false;
+            return;
+        }
+        String target = TextProcessor.process(this.userOriginal.trim(), cfg);
+        if (target.equals(raw)) {
+            this.lastFull = fullText;
+            this.lastSegmentWritten = raw;
+            inp.recycle();
+            root.recycle();
+            this.processing = false;
+            return;
+        }
+        boolean ok = setText(inp, prefix + target);
+        if (ok) {
+            this.lastFull = prefix + target;
+            this.lastSegmentWritten = target;
+            this.lastWriteTime = System.currentTimeMillis();
+        }
+        inp.recycle();
+        root.recycle();
+        this.processing = false;
+    }
+
+    /** 从整段中剥离上一轮追加的句末文本与颜文字，得到干净原文 */
+    private String stripLineAppend(String full, CatConfig cfg) {
+        String seg = (full == null) ? "" : full;
+        String app = (cfg.appendText == null) ? "" : cfg.appendText;
+        if (!app.isEmpty() && seg.endsWith(app)) {
+            seg = seg.substring(0, seg.length() - app.length());
+        }
+        return stripAll(seg, cfg).trim();
+    }
+
+    /** 释放连续输入状态，避免长期保留大文本 */
+    private void resetSegmentState() {
+        this.userOriginal = "";
+        this.lastFull = "";
+        this.lastSegmentWritten = "";
     }
 
     private void resetProcessing() {
@@ -92,6 +189,8 @@ public class GlobalAccessibilityService extends AccessibilityService {
         this.userOriginal = "";
         this.lastSet = "";
         this.lastWriteTime = 0L;
+        this.lastFull = "";
+        this.lastSegmentWritten = "";
         this.cachedConfig = CatConfig.load(this);
     }
 
@@ -101,6 +200,15 @@ public class GlobalAccessibilityService extends AccessibilityService {
         }
         char last = s.charAt(s.length() - 1);
         return last == 12290 || last == 65281 || last == '!' || last == 65311 || last == '?' || last == ' ';
+    }
+
+    /** 取最后一行（去掉行尾空白），用于多行时只改写当前行 */
+    private static String lastLineOf(String full) {
+        if (full == null || full.isEmpty()) {
+            return "";
+        }
+        int nl = full.lastIndexOf('\n');
+        return (nl >= 0 ? full.substring(nl + 1) : full).trim();
     }
 
     private void doProcess(boolean isQQ, boolean isSendClick) {
@@ -121,26 +229,41 @@ public class GlobalAccessibilityService extends AccessibilityService {
         }
         CharSequence cs = inp.getText();
         if (cs == null || cs.length() == 0) {
+            resetSegmentState();
+            this.lastSet = "";
+            this.lastWriteTime = 0L;
             inp.recycle();
             root.recycle();
             this.processing = false;
-            this.userOriginal = "";
-            this.lastSet = "";
             return;
         }
-        String raw = cs.toString().trim();
+        String fullText = cs.toString();
+        // 多行时只改写当前（最后）一行，前面行原样保留
+        String prefix = "";
+        String raw = fullText.trim();
+        int nl = fullText.lastIndexOf('\n');
+        if (nl >= 0) {
+            prefix = fullText.substring(0, nl + 1);
+            raw = fullText.substring(nl + 1).trim();
+        }
         if (raw.isEmpty()) {
+            resetSegmentState();
+            this.lastSet = "";
+            this.lastWriteTime = 0L;
             inp.recycle();
             root.recycle();
             this.processing = false;
-            this.userOriginal = "";
-            this.lastSet = "";
             return;
         }
         CatConfig cfg = this.cachedConfig;
         if (cfg == null) {
             cfg = CatConfig.load(this);
             this.cachedConfig = cfg;
+        }
+        // 连续输入（独立开关，默认开启，优先于标点/实时 radio）
+        if (cfg.enableContinuous && !isSendClick) {
+            handleContinuousInput(inp, root, prefix, raw, fullText, cfg);
+            return;
         }
         long now = System.currentTimeMillis();
         long j = this.lastWriteTime;
@@ -189,7 +312,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
         String target = TextProcessor.process(this.userOriginal, effectiveCfg);
         if (!target.equals(raw)) {
             Log.d(TAG, "写入: raw=" + raw + "  userOriginal=" + this.userOriginal + "  target=" + target);
-            boolean ok = setText(inp, target);
+            boolean ok = setText(inp, prefix + target);
             if (ok) {
                 this.lastSet = target;
                 this.lastWriteTime = System.currentTimeMillis();
