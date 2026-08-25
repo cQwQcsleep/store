@@ -70,7 +70,10 @@ public class TextProcessor {
             String part = parts.get(i).trim();
             if (!part.isEmpty()) {
                 result.append(part);
-                result.append(s);
+                // 分句已以追加文本结尾时不重复追加（如“我→本喵”不会再叠出“本喵喵”）
+                if (!part.endsWith(s)) {
+                    result.append(s);
+                }
             }
             if (i < separators.size()) {
                 result.append(separators.get(i));
