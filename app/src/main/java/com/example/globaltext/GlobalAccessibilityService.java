@@ -13,8 +13,6 @@ import java.util.Comparator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class GlobalAccessibilityService extends AccessibilityService {
     private static final String ID_INPUT = "com.tencent.mobileqq:id/input";
@@ -30,8 +28,6 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private String lastFull = "";
     private String lastSegmentWritten = "";
     private static final int MAX_TEXT_LEN = 20000;
-    // 与 TextProcessor 保持一致的分句分割符，用于识别“本服务已改写”的文本形态（防堆叠）
-    private static final Pattern SENTENCE_SPLIT = Pattern.compile("([\\p{P}\\p{S}\\s\\u200D\\p{M}]+)");
     // 单线程 worker：仅承载纯字符串变换（TextProcessor），规避“无障碍节点必须主线程访问”的限制
     private final ExecutorService transformWorker = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -147,14 +143,6 @@ public class GlobalAccessibilityService extends AccessibilityService {
             this.processing = false;
             return;
         }
-        // 防堆叠硬保险：整段已是完整改写结果（每句均已带句尾追加）→ 视为回显/重复事件，不再二次加工
-        if (isFullyAppended(fullText, cfg)) {
-            resetSegmentState();
-            inp.recycle();
-            safeRecycle(root);
-            this.processing = false;
-            return;
-        }
         // 超长文本直接忽略并释放状态，避免异常存储/内存占用
         if (fullText.length() > MAX_TEXT_LEN) {
             resetSegmentState();
@@ -185,16 +173,16 @@ public class GlobalAccessibilityService extends AccessibilityService {
         // 严格增量：持续输入则把新增字符并入原文；上下文变更（非上次结果扩展）则丢弃旧比对数据后重建
         if (!this.lastFull.isEmpty() && fullText.startsWith(this.lastFull)) {
             this.userOriginal = this.userOriginal + fullText.substring(this.lastFull.length());
+        } else if (!this.lastFull.isEmpty()) {
+            // 本段已改写，但内容从上次改写结果发生了失配（用户改动了已改写内容）：
+            // 无法从“已带追加的文本”安全还原原文，放弃改写本段并重置增量状态，防止二次加工堆叠。
+            resetSegmentState();
+            inp.recycle();
+            safeRecycle(root);
+            this.processing = false;
+            return;
         } else {
-            // 失配且文本已含本服务改写痕迹（≥2 处句尾追加）：无法安全还原原文，
-            // 不再整段二次加工——放弃改写本段并重置增量状态，防止文本多层堆叠。
-            if (countAppendedSegments(fullText, cfg) >= 2) {
-                resetSegmentState();
-                inp.recycle();
-                safeRecycle(root);
-                this.processing = false;
-                return;
-            }
+            // 全新输入（本段尚未改写）：正常剥离重建原文
             this.userOriginal = stripLineAppend(fullText, cfg);
             this.lastFull = "";
             this.lastSegmentWritten = "";
@@ -253,71 +241,6 @@ public class GlobalAccessibilityService extends AccessibilityService {
                 });
             }
         });
-    }
-
-    /**
-     * 统计文本中“每句/文字片段后已追加句尾原文”的片段个数，用于识别文本是否已被本服务改写。
-     * 与 TextProcessor.appendPerSentence 的分句规则保持一致。
-     */
-    private int countAppendedSegments(String text, CatConfig cfg) {
-        if (text == null || text.isEmpty()) {
-            return 0;
-        }
-        String app = (cfg.appendText == null) ? "" : cfg.appendText;
-        if (app.isEmpty()) {
-            return 0;
-        }
-        Matcher m = SENTENCE_SPLIT.matcher(text);
-        int pos = 0;
-        int count = 0;
-        while (m.find()) {
-            String chunk = text.substring(pos, m.start());
-            if (!chunk.trim().isEmpty() && chunk.trim().endsWith(app)) {
-                count++;
-            }
-            pos = m.end();
-        }
-        if (pos < text.length()) {
-            String chunk = text.substring(pos);
-            if (!chunk.trim().isEmpty() && chunk.trim().endsWith(app)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /** 整段每个文字片段都已带句尾追加（完整改写结果，无新增原文）→ 视为重复/回显，不得再次加工 */
-    private boolean isFullyAppended(String text, CatConfig cfg) {
-        if (text == null || text.isEmpty()) {
-            return false;
-        }
-        String app = (cfg.appendText == null) ? "" : cfg.appendText;
-        if (app.isEmpty()) {
-            return false;
-        }
-        Matcher m = SENTENCE_SPLIT.matcher(text);
-        int pos = 0;
-        boolean sawAny = false;
-        while (m.find()) {
-            String chunk = text.substring(pos, m.start());
-            if (!chunk.trim().isEmpty()) {
-                sawAny = true;
-                if (!chunk.trim().endsWith(app)) {
-                    return false;
-                }
-            }
-            pos = m.end();
-        }
-        if (pos < text.length()) {
-            String chunk = text.substring(pos);
-            if (!chunk.trim().isEmpty()) {
-                sawAny = true;
-                if (!chunk.trim().endsWith(app)) {
-                    return false;
-                }
-            }
-        }
-        return sawAny;
     }
 
     /** 从整段中剥离上一轮追加的句末文本与颜文字，得到干净原文 */
@@ -447,7 +370,11 @@ public class GlobalAccessibilityService extends AccessibilityService {
             }
         }
         CharSequence cs = inp.getText();
-        if (cs == null || cs.length() == 0) {
+        CharSequence hintText = inp.getHintText();
+        // 占位提示文本也会被 getText() 返回：text 与 hint 相同 → 输入框实际为空，
+        // 视为空输入，不改写也不写回，避免把提示文本填成内容再追加喵（通用修复，避免污染改写状态）。
+        boolean emptyByHint = hintText != null && hintText.length() > 0 && cs != null && hintText.toString().equals(cs.toString());
+        if (cs == null || cs.length() == 0 || emptyByHint) {
             resetSegmentState();
             this.lastSet = "";
             this.lastWriteTime = 0L;
@@ -494,8 +421,8 @@ public class GlobalAccessibilityService extends AccessibilityService {
             handleContinuousInput(inp, root, prefix, raw, fullText, cfg);
             return;
         }
-        // 防堆叠兜底（非连续分支）：待处理行已是完整改写结果 → 视为回显/重复事件，跳过二次加工
-        if (isFullyAppended(raw, cfg)) {
+        // 防堆叠兜底（非连续分支）：本段已改写（lastSet 非空）但从上次结果失配 → 放弃二次加工
+        if (!this.lastSet.isEmpty() && !raw.startsWith(this.lastSet) && !this.lastSet.startsWith(raw)) {
             resetSegmentState();
             this.lastSet = "";
             this.lastWriteTime = 0L;
