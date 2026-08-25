@@ -32,6 +32,8 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private final ExecutorService transformWorker = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AtomicLong writeGen = new AtomicLong(0);
+    private Runnable voiceTask;
+    private int voiceDelayMs = 750;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
@@ -90,6 +92,12 @@ public class GlobalAccessibilityService extends AccessibilityService {
                 } else {
                     handoff = true; // 可编辑且有中文 → 作为输入框线索，避免 getRoot+递归遍历
                 }
+            }
+            // 语音模式：流式输入时暂停改写，停顿后再一次性改写，避免打断语音
+            if (cfg.enableVoice) {
+                safeRecycle(s);
+                scheduleVoiceRewrite(isQQ);
+                return;
             }
             if (cfg.enableContinuous) {
                 doProcess(isQQ, false, handoff ? s : null);
@@ -246,12 +254,48 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private void resetProcessing() {
         this.processing = false;
         this.writeGen.incrementAndGet(); // 使在途 worker 写回作废
+        synchronized (this) {
+            if (this.voiceTask != null) {
+                this.mainHandler.removeCallbacks(this.voiceTask);
+                this.voiceTask = null;
+            }
+        }
         this.userOriginal = "";
         this.lastSet = "";
         this.lastWriteTime = 0L;
         this.lastFull = "";
         this.lastSegmentWritten = "";
         this.cachedConfig = CatConfig.load(this);
+    }
+
+    /** 语音模式：每次文本变更都重排“停顿改写”，流式吐字期间持续被重置而不会改写，停顿延时后才一次性改写 */
+    private void scheduleVoiceRewrite(boolean isQQ) {
+        long delay = this.voiceDelayMs;
+        CatConfig cfg = this.cachedConfig;
+        if (cfg != null) {
+            delay = cfg.voiceDelayMs;
+        }
+        if (delay < 0) {
+            delay = 0;
+        }
+        if (delay > 3000) {
+            delay = 3000;
+        }
+        synchronized (this) {
+            if (this.voiceTask != null) {
+                this.mainHandler.removeCallbacks(this.voiceTask);
+            }
+            this.voiceTask = new Runnable() {
+                @Override
+                public void run() {
+                    synchronized (GlobalAccessibilityService.this) {
+                        GlobalAccessibilityService.this.voiceTask = null;
+                    }
+                    doProcess(isQQ, false, null);
+                }
+            };
+            this.mainHandler.postDelayed(this.voiceTask, delay);
+        }
     }
 
     /** 空安全的节点回收 */

@@ -30,6 +30,9 @@ public class MainActivity extends Activity {
     private CheckBox cbRuleI;
     private CheckBox cbRuleYou;
     private CheckBox cbAutoHide;
+    private CheckBox cbVoice;
+    private EditText etVoiceDelay;
+    private static final int DEFAULT_VOICE_DELAY = 750;
     private CatConfig config;
     private EditText etAppendText;
     private EditText etCustomEmoticons;
@@ -105,7 +108,7 @@ public class MainActivity extends Activity {
         modeRow.setOrientation(0);
         modeRow.setPadding(0, 8, 0, 8);
         this.rbPunctuation = new CheckBox(this);
-        this.rbPunctuation.setText("标点触发 (推荐)  ");
+        this.rbPunctuation.setText("标点触发  ");
         this.rbPunctuation.setTextSize(16.0f);
         this.rbPunctuation.setTextColor(Color.rgb(51, 51, 51));
         this.rbPunctuation.setChecked(CatConfig.MODE_PUNCTUATION.equals(this.config.processingMode));
@@ -160,6 +163,54 @@ public class MainActivity extends Activity {
         this.cbRuleI = addCheckbox(root, "替换：我→本喵", "把输入中的“我”替换为“本喵”", this.config.enableRuleI);
         this.cbRuleYou = addCheckbox(root, "替换：你→主人", "把输入中的“你”替换为“主人”", this.config.enableRuleYou);
         this.cbAutoHide = addCheckbox(root, "后台自动隐藏", "失去前台焦点时关闭并移出最近任务，不在后台出现", this.config.enableAutoHide);
+        // 语音模式：开关 + 改写延时输入框（默认不可改，开启语音模式后可改）+ 重置
+        LinearLayout voiceRow = new LinearLayout(this);
+        voiceRow.setOrientation(0);
+        voiceRow.setPadding(0, 8, 0, 8);
+        voiceRow.setGravity(16);
+        this.cbVoice = new CheckBox(this);
+        this.cbVoice.setText("语音模式");
+        this.cbVoice.setTextSize(16.0f);
+        this.cbVoice.setTextColor(Color.rgb(51, 51, 51));
+        this.cbVoice.setChecked(this.config.enableVoice);
+        this.cbVoice.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                MainActivity.this.etVoiceDelay.setEnabled(isChecked);
+            }
+        });
+        voiceRow.addView(this.cbVoice);
+        TextView voiceDesc = new TextView(this);
+        voiceDesc.setText("  语音流式输入时不改写，停顿后一次性改写。延时：");
+        voiceDesc.setTextSize(13.0f);
+        voiceDesc.setTextColor(Color.rgb(136, 136, 136));
+        voiceRow.addView(voiceDesc);
+        this.etVoiceDelay = new EditText(this);
+        this.etVoiceDelay.setInputType(2); // TYPE_CLASS_NUMBER
+        this.etVoiceDelay.setText(String.valueOf(this.config.voiceDelayMs));
+        this.etVoiceDelay.setEnabled(this.config.enableVoice); // 默认不可修改，开启语音模式可修改
+        LinearLayout.LayoutParams delayLp = new LinearLayout.LayoutParams(96, -2);
+        this.etVoiceDelay.setLayoutParams(delayLp);
+        voiceRow.addView(this.etVoiceDelay);
+        TextView msText = new TextView(this);
+        msText.setText(" ms(0-3000)");
+        msText.setTextSize(13.0f);
+        msText.setTextColor(Color.rgb(136, 136, 136));
+        voiceRow.addView(msText);
+        Button voiceReset = new Button(this);
+        voiceReset.setText("重置");
+        voiceReset.setTextSize(13.0f);
+        voiceReset.setTextColor(Color.rgb(255, 111, 0));
+        voiceReset.setBackgroundColor(-1);
+        voiceReset.setPadding(16, 6, 16, 6);
+        voiceReset.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                MainActivity.this.etVoiceDelay.setText(String.valueOf(DEFAULT_VOICE_DELAY));
+            }
+        });
+        voiceRow.addView(voiceReset);
+        root.addView(voiceRow);
 
         TextView ruleTitle = new TextView(this);
         ruleTitle.setText("文本替换规则");
@@ -396,6 +447,14 @@ public class MainActivity extends Activity {
             this.config.enableRuleI = this.cbRuleI.isChecked();
             this.config.enableRuleYou = this.cbRuleYou.isChecked();
             this.config.enableAutoHide = this.cbAutoHide.isChecked();
+            this.config.enableVoice = this.cbVoice.isChecked();
+            try {
+                int delay = Integer.parseInt(this.etVoiceDelay.getText().toString().trim());
+                this.config.voiceDelayMs = Math.max(0, Math.min(3000, delay));
+            } catch (Exception ignore) {
+                // 非法输入保持原值或默认 750
+                this.config.voiceDelayMs = DEFAULT_VOICE_DELAY;
+            }
             this.config.processingMode = this.rbRealtime.isChecked() ? CatConfig.MODE_REALTIME : CatConfig.MODE_PUNCTUATION;
 
             ArrayList<CatConfig.Rule> rules = new ArrayList<>();

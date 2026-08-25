@@ -19,6 +19,8 @@ public class CatConfig {
     public static final String KEY_ENABLE_RULE_I = "enable_rule_i";
     public static final String KEY_ENABLE_RULE_YOU = "enable_rule_you";
     public static final String KEY_ENABLE_AUTO_HIDE = "enable_auto_hide";
+    public static final String KEY_ENABLE_VOICE = "enable_voice";
+    public static final String KEY_VOICE_DELAY = "voice_delay";
     public static final String MODE_PUNCTUATION = "punctuation";
     public static final String MODE_REALTIME = "realtime";
     private static final String PREFS_NAME = "cat_config";
@@ -41,12 +43,14 @@ public class CatConfig {
     public boolean enableAppend = true;
     public String appendText = "喵";
     public boolean enableRandomEmoticon = true;
-    public String processingMode = MODE_PUNCTUATION;
+    public String processingMode = MODE_REALTIME;
     public boolean globalRewrite = false;
     public boolean enableContinuous = true;
     public boolean enableRuleI = true;
     public boolean enableRuleYou = true;
     public boolean enableAutoHide = false;
+    public boolean enableVoice = false;
+    public int voiceDelayMs = 750;
     public String[] customEmoticons = new String[0];
     public List<Rule> rules = new ArrayList<>();
 
@@ -99,12 +103,14 @@ public class CatConfig {
         cfg.enableAppend = sp.getBoolean(KEY_ENABLE_APPEND, true);
         cfg.appendText = sp.getString(KEY_APPEND_TEXT, "喵");
         cfg.enableRandomEmoticon = sp.getBoolean(KEY_ENABLE_EMOTICON, true);
-        cfg.processingMode = sp.getString(KEY_PROCESSING_MODE, MODE_PUNCTUATION);
+        cfg.processingMode = sp.getString(KEY_PROCESSING_MODE, MODE_REALTIME);
         cfg.globalRewrite = sp.getBoolean(KEY_GLOBAL, false);
         cfg.enableContinuous = sp.getBoolean(KEY_ENABLE_CONTINUOUS, true);
         cfg.enableRuleI = sp.getBoolean(KEY_ENABLE_RULE_I, true);
         cfg.enableRuleYou = sp.getBoolean(KEY_ENABLE_RULE_YOU, true);
         cfg.enableAutoHide = sp.getBoolean(KEY_ENABLE_AUTO_HIDE, false);
+        cfg.enableVoice = sp.getBoolean(KEY_ENABLE_VOICE, false);
+        cfg.voiceDelayMs = sp.getInt(KEY_VOICE_DELAY, 750);
 
         String rulesStr = sp.getString(KEY_RULES, "");
         if (rulesStr != null && !rulesStr.trim().isEmpty()) {
@@ -146,6 +152,8 @@ public class CatConfig {
         ed.putBoolean(KEY_ENABLE_RULE_I, this.enableRuleI);
         ed.putBoolean(KEY_ENABLE_RULE_YOU, this.enableRuleYou);
         ed.putBoolean(KEY_ENABLE_AUTO_HIDE, this.enableAutoHide);
+        ed.putBoolean(KEY_ENABLE_VOICE, this.enableVoice);
+        ed.putInt(KEY_VOICE_DELAY, Math.max(0, Math.min(3000, this.voiceDelayMs)));
         ed.putString(KEY_RULES, rulesToString(this.rules));
         ed.putString(KEY_CUSTOM_EMOTICONS, join(this.customEmoticons, "\n"));
         ed.apply();
