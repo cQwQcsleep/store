@@ -3,11 +3,16 @@ package com.example.globaltext;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class GlobalAccessibilityService extends AccessibilityService {
     private static final String ID_INPUT = "com.tencent.mobileqq:id/input";
@@ -23,6 +28,10 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private String lastFull = "";
     private String lastSegmentWritten = "";
     private static final int MAX_TEXT_LEN = 20000;
+    // 单线程 worker：仅承载纯字符串变换（TextProcessor），规避“无障碍节点必须主线程访问”的限制
+    private final ExecutorService transformWorker = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final AtomicLong writeGen = new AtomicLong(0);
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
@@ -54,7 +63,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
             if (src != null) {
                 if (isQQ && ID_SEND.equals(src.getViewIdResourceName())) {
                     Log.d(TAG, "点击发送，兜底处理");
-                    doProcess(true, true);
+                    doProcess(true, true, null);
                 }
                 src.recycle();
             }
@@ -62,14 +71,34 @@ public class GlobalAccessibilityService extends AccessibilityService {
         }
 
         if (type == 16) {
-            // 连续输入开启时：任意文本变更都实时触发（不再等待末行标点）
+            // 性能优化：事件源快速短路——非可编辑源直接忽略；有内容但无中文的不改写（只处理中文）
+            AccessibilityNodeInfo s = e.getSource();
+            boolean handoff = false;
+            if (s != null) {
+                boolean editable = s.isEditable();
+                CharSequence st = s.getText();
+                boolean noChinese = st != null && st.length() > 0 && !hasChinese(st);
+                if (!editable || noChinese) {
+                    safeRecycle(s);
+                    if (noChinese) {
+                        return;
+                    }
+                    if (!editable) {
+                        return;
+                    }
+                    s = null;
+                } else {
+                    handoff = true; // 可编辑且有中文 → 作为输入框线索，避免 getRoot+递归遍历
+                }
+            }
             if (cfg.enableContinuous) {
-                doProcess(isQQ, false);
+                doProcess(isQQ, false, handoff ? s : null);
                 return;
             }
+            safeRecycle(s);
             String mode = cfg.processingMode != null ? cfg.processingMode : CatConfig.MODE_PUNCTUATION;
             if (CatConfig.MODE_REALTIME.equals(mode)) {
-                doProcess(isQQ, false);
+                doProcess(isQQ, false, null);
                 return;
             }
             AccessibilityNodeInfo root = getRootInActiveWindow();
@@ -78,19 +107,19 @@ public class GlobalAccessibilityService extends AccessibilityService {
             }
             AccessibilityNodeInfo inp = findInput(root, isQQ);
             if (inp == null) {
-                root.recycle();
+                safeRecycle(root);
                 return;
             }
             CharSequence cs = inp.getText();
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             if (cs == null || cs.length() == 0) {
                 return;
             }
             String last = lastLineOf(cs.toString());
             if (!last.isEmpty() && isPunctuationEnding(last)) {
                 Log.d(TAG, "标点触发: " + last);
-                doProcess(isQQ, false);
+                doProcess(isQQ, false, null);
             }
         }
     }
@@ -102,7 +131,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
         if (this.lastWriteTime > 0 && now - this.lastWriteTime < 600 && fullText.equals(this.lastFull)) {
             this.lastWriteTime = 0L;
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -110,7 +139,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
         if (fullText.length() > MAX_TEXT_LEN) {
             resetSegmentState();
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -122,14 +151,14 @@ public class GlobalAccessibilityService extends AccessibilityService {
             this.userOriginal = stripLineAppend(raw, cfg);
             this.lastSegmentWritten = raw;
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
         // 前面行被改（末行未变、整段却变化）→ 不进写回
         if (!this.lastFull.isEmpty() && raw.equals(this.lastSegmentWritten) && !fullText.equals(this.lastFull)) {
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -143,28 +172,58 @@ public class GlobalAccessibilityService extends AccessibilityService {
         }
         if (this.userOriginal == null || this.userOriginal.trim().isEmpty()) {
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
-        String target = TextProcessor.process(this.userOriginal.trim(), cfg);
-        if (target.equals(raw)) {
-            this.lastFull = fullText;
-            this.lastSegmentWritten = raw;
-            inp.recycle();
-            root.recycle();
-            this.processing = false;
-            return;
-        }
-        boolean ok = setText(inp, prefix + target);
-        if (ok) {
-            this.lastFull = prefix + target;
-            this.lastSegmentWritten = target;
-            this.lastWriteTime = System.currentTimeMillis();
-        }
-        inp.recycle();
-        root.recycle();
-        this.processing = false;
+        // 纯字符串变换放到单线程 worker，写回仍回主线程（accessibility API 限制），
+        // 配代次 + 主线程再核对：处理窗口内有新输入则丢弃本次写回，避免覆盖用户输入。
+        final String base = this.userOriginal;
+        final CatConfig cc = cfg;
+        final long gen = this.writeGen.incrementAndGet();
+        this.transformWorker.execute(new Runnable() {
+            @Override
+            public void run() {
+                final String target = TextProcessor.process(base.trim(), cc);
+                mainHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        // 有新输入触发了新的处理，丢弃本次过期结果
+                        if (gen != writeGen.get()) {
+                            inp.recycle();
+                            safeRecycle(root);
+                            processing = false;
+                            return;
+                        }
+                        // 变换期间输入框又变了：不覆盖，交给下一个事件
+                        CharSequence cNow = inp.getText();
+                        if (cNow != null && !fullText.contentEquals(cNow)) {
+                            inp.recycle();
+                            safeRecycle(root);
+                            processing = false;
+                            return;
+                        }
+                        if (target.equals(raw)) {
+                            lastFull = fullText;
+                            lastSegmentWritten = raw;
+                            inp.recycle();
+                            safeRecycle(root);
+                            processing = false;
+                            return;
+                        }
+                        boolean ok = setText(inp, prefix + target);
+                        if (ok) {
+                            lastFull = prefix + target;
+                            lastSegmentWritten = target;
+                            lastWriteTime = System.currentTimeMillis();
+                        }
+                        inp.recycle();
+                        safeRecycle(root);
+                        processing = false;
+                    }
+                });
+            }
+        });
     }
 
     /** 从整段中剥离上一轮追加的句末文本与颜文字，得到干净原文 */
@@ -186,12 +245,38 @@ public class GlobalAccessibilityService extends AccessibilityService {
 
     private void resetProcessing() {
         this.processing = false;
+        this.writeGen.incrementAndGet(); // 使在途 worker 写回作废
         this.userOriginal = "";
         this.lastSet = "";
         this.lastWriteTime = 0L;
         this.lastFull = "";
         this.lastSegmentWritten = "";
         this.cachedConfig = CatConfig.load(this);
+    }
+
+    /** 空安全的节点回收 */
+    private static void safeRecycle(AccessibilityNodeInfo n) {
+        if (n != null) {
+            n.recycle();
+        }
+    }
+
+    /** 若含任一汉字则返回 true；只处理中文 */
+    private static boolean hasChinese(CharSequence s) {
+        if (s == null) {
+            return false;
+        }
+        String str = s.toString();
+        int i = 0;
+        int len = str.length();
+        while (i < len) {
+            int cp = str.codePointAt(i);
+            if (Character.UnicodeScript.of(cp) == Character.UnicodeScript.HAN) {
+                return true;
+            }
+            i += Character.charCount(cp);
+        }
+        return false;
     }
 
     private boolean isPunctuationEnding(String s) {
@@ -211,21 +296,25 @@ public class GlobalAccessibilityService extends AccessibilityService {
         return (nl >= 0 ? full.substring(nl + 1) : full).trim();
     }
 
-    private void doProcess(boolean isQQ, boolean isSendClick) {
+    private void doProcess(boolean isQQ, boolean isSendClick, AccessibilityNodeInfo hint) {
         if (this.processing) {
             return;
         }
         this.processing = true;
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) {
-            this.processing = false;
-            return;
-        }
-        AccessibilityNodeInfo inp = findInput(root, isQQ);
+        AccessibilityNodeInfo root = null;
+        AccessibilityNodeInfo inp = hint; // 事件源线索，命中则避免 getRoot+递归遍历
         if (inp == null) {
-            root.recycle();
-            this.processing = false;
-            return;
+            root = getRootInActiveWindow();
+            if (root == null) {
+                this.processing = false;
+                return;
+            }
+            inp = findInput(root, isQQ);
+            if (inp == null) {
+                safeRecycle(root);
+                this.processing = false;
+                return;
+            }
         }
         CharSequence cs = inp.getText();
         if (cs == null || cs.length() == 0) {
@@ -233,7 +322,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
             this.lastSet = "";
             this.lastWriteTime = 0L;
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -251,7 +340,17 @@ public class GlobalAccessibilityService extends AccessibilityService {
             this.lastSet = "";
             this.lastWriteTime = 0L;
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
+            this.processing = false;
+            return;
+        }
+        // 只处理中文：当前行无中文字符则不改写并释放状态
+        if (!hasChinese(raw)) {
+            resetSegmentState();
+            this.lastSet = "";
+            this.lastWriteTime = 0L;
+            inp.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -271,7 +370,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
             Log.d(TAG, "写入回显跳过");
             this.lastWriteTime = 0L;
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -282,7 +381,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
             this.userOriginal = stripAll(raw, cfg);
             this.lastSet = raw;
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -301,7 +400,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
         if (this.userOriginal.isEmpty()) {
             Log.d(TAG, "原文为空，跳过");
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
@@ -318,13 +417,13 @@ public class GlobalAccessibilityService extends AccessibilityService {
                 this.lastWriteTime = System.currentTimeMillis();
             }
             inp.recycle();
-            root.recycle();
+            safeRecycle(root);
             this.processing = false;
             return;
         }
         this.lastSet = target;
         inp.recycle();
-        root.recycle();
+        safeRecycle(root);
         this.processing = false;
     }
 
