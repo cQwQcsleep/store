@@ -1,0 +1,1521 @@
+===== File: build.gradle.kts =====
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+}
+
+android {
+    namespace = "com.skyclient"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.skyclient"
+        minSdk = 32
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    implementation("androidx.activity:activity-compose:1.9.2")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}
+
+===== File: app/src/main/AndroidManifest.xml =====
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="SkyClient"
+        android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+
+===== File: app/src/main/java/com/skyclient/MainActivity.kt =====
+package com.skyclient
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
+import com.skyclient.ui.FriendManagementScreen
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                FriendManagementScreen()
+            }
+        }
+    }
+}
+
+===== File: app/src/main/java/com/skyclient/api/ApiClient.kt =====
+package com.skyclient.api
+
+import android.util.Base64
+import java.security.SecureRandom
+import java.util.Collections
+import java.util.concurrent.TimeUnit
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
+import org.json.JSONObject
+
+class ApiException(val code: Int, message: String) : Exception(message)
+
+object ApiClient {
+    const val BASE_URL = "https://sky.angin.cn"
+
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val cookieJar = InMemoryCookieJar
+
+    val keyClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .cookieJar(cookieJar)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .cookieJar(cookieJar)
+            .addInterceptor(EncryptionInterceptor(BASE_URL))
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+    }
+
+    suspend fun get(path: String): JSONObject {
+        val request = Request.Builder()
+            .url(BASE_URL + path)
+            .header("Cache-Control", "no-cache")
+            .build()
+        return execute(request)
+    }
+
+    suspend fun post(path: String, body: JSONObject): JSONObject {
+        val request = Request.Builder()
+            .url(BASE_URL + path)
+            .post(body.toString().toRequestBody(jsonMediaType))
+            .build()
+        return execute(request)
+    }
+
+    private suspend fun execute(request: Request): JSONObject = withContext(Dispatchers.IO) {
+        client.newCall(request).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val message = try {
+                    JSONObject(body).optString("message", "HTTP ${response.code}")
+                } catch (_: Exception) {
+                    "HTTP ${response.code}"
+                }
+                throw ApiException(response.code, message)
+            }
+            if (body.isBlank()) {
+                throw ApiException(response.code, "空响应")
+            }
+            try {
+                JSONObject(body)
+            } catch (e: Exception) {
+                throw ApiException(response.code, "响应不是 JSON: ${e.message}")
+            }
+        }
+    }
+
+    private object InMemoryCookieJar : CookieJar {
+        private val store = Collections.synchronizedSet(mutableSetOf<Cookie>())
+
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+            synchronized(store) {
+                store.addAll(cookies)
+            }
+        }
+
+        override fun loadForRequest(url: HttpUrl): List<Cookie> = synchronized(store) {
+            val now = System.currentTimeMillis()
+            val iterator = store.iterator()
+            while (iterator.hasNext()) {
+                if (iterator.next().expiresAt() < now) {
+                    iterator.remove()
+                }
+            }
+            store.filter { it.matches(url) }
+        }
+    }
+}
+
+class EncryptionInterceptor(private val baseUrl: String) : Interceptor {
+
+    private val lock = Any()
+    private var secretKey: SecretKeySpec? = null
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val path = request.url.encodedPath
+        val isApi = path.startsWith("/api/")
+        val shouldEncrypt = isApi && !path.contains("/crypto/key") && request.body != null
+
+        var requestToSend = request
+        if (shouldEncrypt) {
+            val buffer = Buffer()
+            request.body?.writeTo(buffer)
+            val bodyString = buffer.readUtf8()
+            val encrypted = encrypt(bodyString)
+            if (encrypted != null) {
+                requestToSend = request.newBuilder()
+                    .header("X-Encrypted", "1")
+                    .method(request.method, encrypted.toRequestBody(request.body?.contentType()))
+                    .build()
+            }
+        }
+
+        val response = chain.proceed(requestToSend)
+
+        if (shouldEncrypt && response.header("X-Encrypted") == "1") {
+            val bodyString = response.body?.string() ?: return response
+            val decrypted = decrypt(bodyString)
+            if (decrypted != null) {
+                val newBody = decrypted.toResponseBody(response.body?.contentType())
+                return response.newBuilder()
+                    .header("Content-Length", newBody.contentLength().toString())
+                    .body(newBody)
+                    .build()
+            }
+        }
+
+        return response
+    }
+
+    private fun encrypt(plain: String): String? = synchronized(lock) {
+        try {
+            val key = getKey() ?: return null
+            val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(128, iv))
+            val ciphertext = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
+            val out = ByteArray(iv.size + ciphertext.size)
+            System.arraycopy(iv, 0, out, 0, iv.size)
+            System.arraycopy(ciphertext, 0, out, iv.size, ciphertext.size)
+            Base64.encodeToString(out, Base64.NO_WRAP)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun decrypt(data: String): String? = synchronized(lock) {
+        try {
+            val key = getKey() ?: return null
+            val raw = Base64.decode(data, Base64.NO_WRAP)
+            if (raw.size < 13) return null
+            val iv = raw.copyOfRange(0, 12)
+            val ciphertext = raw.copyOfRange(12, raw.size)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv))
+            String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun getKey(): SecretKeySpec? {
+        secretKey?.let { return it }
+        synchronized(lock) {
+            secretKey?.let { return it }
+            val key = fetchKey() ?: return null
+            secretKey = key
+            return key
+        }
+    }
+
+    private fun fetchKey(): SecretKeySpec? {
+        return try {
+            val request = Request.Builder()
+                .url("$baseUrl/api/crypto/key")
+                .build()
+            ApiClient.keyClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    null
+                } else {
+                    val json = JSONObject(response.body?.string().orEmpty())
+                    if (!json.optBoolean("success")) {
+                        null
+                    } else {
+                        val keyString = json.optString("key")
+                        if (keyString.isBlank()) {
+                            null
+                        } else {
+                            SecretKeySpec(Base64.decode(keyString, Base64.NO_WRAP), "AES")
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
+
+===== File: app/src/main/java/com/skyclient/data/Models.kt =====
+package com.skyclient.data
+
+import org.json.JSONObject
+
+data class Account(
+    val id: String,
+    val account: String,
+    val displayUsername: String,
+    val nickname: String,
+    val platform: String,
+    val status: String,
+    val loginType: String,
+    val gameUserId: String,
+    val friendId: String,
+    val deviceId: String
+) {
+    val displayName: String
+        get() = displayUsername.ifBlank { nickname.ifBlank { account.ifBlank { id } } }
+}
+
+data class Friend(
+    val id: String,
+    val name: String,
+    val nickname: String,
+    val avatar: String?,
+    val group: String?,
+    val friendId: String,
+    val gameUserId: String,
+    val online: Boolean,
+    val blocked: Boolean,
+    val remark: String?,
+    val platform: String?,
+    val raw: JSONObject? = null
+) {
+    val relationId: String
+        get() = friendId.ifBlank { id }
+}
+
+data class FriendListResult(
+    val friends: List<Friend>,
+    val groups: List<String>
+)
+
+===== File: app/src/main/java/com/skyclient/data/FriendRepository.kt =====
+package com.skyclient.data
+
+import com.skyclient.api.ApiClient
+import com.skyclient.api.ApiException
+import org.json.JSONArray
+import org.json.JSONObject
+
+object FriendRepository {
+
+    suspend fun getAccounts(): List<Account> {
+        val json = ApiClient.get("/api/accounts")
+        if (json.has("success") && !json.optBoolean("success")) {
+            throw ApiException(json.optInt("code", -1), json.optString("message", "获取账号失败"))
+        }
+        val array = json.optJSONArray("accounts")
+            ?: throw ApiException(-1, "响应缺少 accounts")
+        return buildList {
+            for (i in 0 until array.length()) {
+                add(array.getJSONObject(i).toAccount())
+            }
+        }
+    }
+
+    suspend fun getFriends(accountId: String): FriendListResult {
+        val primaryPath = "/api/accounts/$accountId/friends"
+        try {
+            return ApiClient.get(primaryPath).toFriendListResult()
+        } catch (e: ApiException) {
+            if (e.code == 404 || e.code == 405 || e.code == 400 || e.code == 501 || e.code == -1) {
+                val body = JSONObject().put("action", "list")
+                return ApiClient.post("/api/accounts/$accountId/friend-relations", body).toFriendListResult()
+            }
+            throw e
+        }
+    }
+
+    suspend fun friendRelation(
+        accountId: String,
+        action: String,
+        friendId: String,
+        name: String? = null
+    ) {
+        val body = JSONObject()
+            .put("action", action)
+            .put("friend_id", friendId)
+        if (name != null) {
+            body.put("name", name)
+        }
+        val json = ApiClient.post("/api/accounts/$accountId/friend-relations", body)
+        if (json.has("success") && !json.optBoolean("success")) {
+            throw ApiException(json.optInt("code", -1), json.optString("message", "操作失败"))
+        }
+    }
+
+    private fun JSONObject.toAccount(): Account = Account(
+        id = optString("id"),
+        account = optString("account"),
+        displayUsername = optString("display_username"),
+        nickname = optString("nickname"),
+        platform = optString("platform"),
+        status = optString("status"),
+        loginType = optString("login_type"),
+        gameUserId = optString("game_user_id"),
+        friendId = optString("friend_id"),
+        deviceId = optString("device_id")
+    )
+
+    private fun JSONObject.toFriendListResult(): FriendListResult {
+        if (has("success") && !optBoolean("success")) {
+            throw ApiException(optInt("code", -1), optString("message", "获取好友失败"))
+        }
+
+        val root = optJSONObject("data") ?: this
+
+        val friends = mutableListOf<Friend>()
+        val friendsArray = root.optJSONArray("friends")
+            ?: root.optJSONArray("items")
+            ?: root.optJSONArray("list")
+            ?: optJSONArray("friends")
+            ?: optJSONArray("items")
+            ?: optJSONArray("list")
+            ?: JSONArray()
+
+        for (i in 0 until friendsArray.length()) {
+            friends.add(friendsArray.getJSONObject(i).toFriend())
+        }
+
+        val groups = mutableListOf<String>()
+        val groupsArray = root.optJSONArray("groups") ?: optJSONArray("groups")
+        groupsArray?.let { array ->
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i)
+                val group = obj?.optString("name")?.takeIf { it.isNotBlank() }
+                    ?: array.optString(i).takeIf { it.isNotBlank() }
+                if (group != null) groups.add(group)
+            }
+        }
+        if (groups.isEmpty()) {
+            friends.mapNotNull { it.group }.distinct().forEach { groups.add(it) }
+        }
+
+        return FriendListResult(friends, groups)
+    }
+
+    private fun JSONObject.toFriend(): Friend {
+        val id = optString("id").ifBlank { optString("_id").ifBlank { optString("friend_id") } }
+        val name = optString("name").ifBlank { optString("display_name").ifBlank { optString("nickname").ifBlank { optString("remark") } } }
+        val nickname = optString("nickname").ifBlank { optString("remark").ifBlank { optString("name") } }
+        val avatar = optString("avatar").ifBlank { optString("head_img") }.takeIf { it.isNotBlank() }
+        val group = optString("group").ifBlank { optString("group_name").ifBlank { optString("tag") } }.takeIf { it.isNotBlank() }
+        val friendId = optString("friend_id").ifBlank { optString("sky_friend_id") }
+        val gameUserId = optString("game_user_id").ifBlank { optString("game_uid") }
+
+        return Friend(
+            id = id,
+            name = name,
+            nickname = nickname,
+            avatar = avatar,
+            group = group,
+            friendId = friendId,
+            gameUserId = gameUserId,
+            online = optBoolean("online") || optBoolean("is_online"),
+            blocked = optBoolean("blocked") || optBoolean("is_blocked") || optBoolean("blacklisted") || optBoolean("in_blacklist"),
+            remark = optString("remark").takeIf { it.isNotBlank() },
+            platform = optString("platform").takeIf { it.isNotBlank() },
+            raw = this
+        )
+    }
+}
+
+===== File: app/src/main/java/com/skyclient/ui/FriendManagementScreen.kt =====
+package com.skyclient.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.skyclient.api.ApiException
+import com.skyclient.data.Account
+import com.skyclient.data.Friend
+import com.skyclient.data.FriendRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+data class FriendUiState(
+    val accounts: List<Account> = emptyList(),
+    val selectedAccountId: String? = null,
+    val friends: List<Friend> = emptyList(),
+    val groups: List<String> = emptyList(),
+    val selectedGroup: String? = null,
+    val searchQuery: String = "",
+    val selectionMode: Boolean = false,
+    val selection: Set<String> = emptySet(),
+    val loading: Boolean = false,
+    val error: String? = null,
+    val snackbarMessage: String? = null,
+    val blockingIds: Set<String> = emptySet(),
+    val batchRunning: Boolean = false
+)
+
+class FriendManagementViewModel : ViewModel() {
+
+    private val _uiState = MutableStateFlow(FriendUiState())
+    val uiState: StateFlow<FriendUiState> = _uiState.asStateFlow()
+
+    private var loadJob: Job? = null
+
+    init {
+        refresh()
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(loading = true, error = null) }
+            try {
+                val accounts = FriendRepository.getAccounts()
+                if (accounts.isEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            accounts = accounts,
+                            loading = false,
+                            friends = emptyList(),
+                            groups = emptyList(),
+                            selectedAccountId = null
+                        )
+                    }
+                    return@launch
+                }
+
+                val current = _uiState.value.selectedAccountId
+                val selected = current?.let { id -> accounts.firstOrNull { it.id == id }?.id }
+                    ?: accounts.first().id
+
+                _uiState.update { it.copy(accounts = accounts, selectedAccountId = selected) }
+                loadFriends(selected)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(loading = false, error = e.toUserMessage()) }
+            }
+        }
+    }
+
+    fun loadFriends(accountId: String? = _uiState.value.selectedAccountId) {
+        val id = accountId ?: return
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            _uiState.update { it.copy(loading = true, error = null) }
+            try {
+                val result = FriendRepository.getFriends(id)
+                _uiState.update { state ->
+                    val validGroup = state.selectedGroup?.takeIf { group ->
+                        result.groups.contains(group) || result.friends.any { it.group == group }
+                    }
+                    state.copy(
+                        friends = result.friends,
+                        groups = result.groups,
+                        selectedGroup = validGroup,
+                        loading = false,
+                        error = null,
+                        selection = emptySet(),
+                        selectionMode = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(loading = false, error = e.toUserMessage()) }
+            }
+        }
+    }
+
+    fun selectAccount(accountId: String) {
+        if (_uiState.value.selectedAccountId == accountId) return
+        _uiState.update {
+            it.copy(
+                selectedAccountId = accountId,
+                friends = emptyList(),
+                groups = emptyList(),
+                selectedGroup = null,
+                selection = emptySet(),
+                selectionMode = false,
+                error = null
+            )
+        }
+        loadFriends(accountId)
+    }
+
+    fun setSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun selectGroup(group: String?) {
+        _uiState.update { it.copy(selectedGroup = group) }
+    }
+
+    fun enterSelectionMode() {
+        _uiState.update { it.copy(selectionMode = true, selection = emptySet()) }
+    }
+
+    fun exitSelectionMode() {
+        _uiState.update { it.copy(selectionMode = false, selection = emptySet()) }
+    }
+
+    fun longPressSelection(friendId: String) {
+        _uiState.update { it.copy(selectionMode = true, selection = setOf(friendId)) }
+    }
+
+    fun toggleSelection(friendId: String) {
+        _uiState.update { state ->
+            if (!state.selectionMode) return@update state
+            val selection = if (friendId in state.selection) {
+                state.selection - friendId
+            } else {
+                state.selection + friendId
+            }
+            state.copy(selection = selection)
+        }
+    }
+
+    fun rename(friendId: String, newName: String) {
+        val accountId = _uiState.value.selectedAccountId ?: return
+        val name = newName.trim()
+        if (name.isEmpty()) {
+            showMessage("名称不能为空")
+            return
+        }
+        val friend = _uiState.value.friends.firstOrNull { it.id == friendId } ?: return
+
+        viewModelScope.launch {
+            try {
+                FriendRepository.friendRelation(accountId, "rename", friend.relationId, name = name)
+                updateFriend(friend.id) { it.copy(name = name, nickname = name) }
+                showMessage("已修改备注")
+            } catch (e: Exception) {
+                showMessage(e.toUserMessage())
+            }
+        }
+    }
+
+    fun deleteFriend(friendId: String) {
+        val accountId = _uiState.value.selectedAccountId ?: return
+        val friend = _uiState.value.friends.firstOrNull { it.id == friendId } ?: return
+
+        viewModelScope.launch {
+            try {
+                FriendRepository.friendRelation(accountId, "delete", friend.relationId)
+                _uiState.update { state ->
+                    state.copy(
+                        friends = state.friends.filterNot { it.id == friendId },
+                        selection = state.selection - friendId
+                    )
+                }
+                showMessage("已删除")
+            } catch (e: Exception) {
+                showMessage(e.toUserMessage())
+            }
+        }
+    }
+
+    fun toggleBlock(friend: Friend) {
+        if (_uiState.value.blockingIds.contains(friend.id)) return
+        val accountId = _uiState.value.selectedAccountId ?: return
+        val targetBlocked = !friend.blocked
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(blockingIds = it.blockingIds + friend.id) }
+            try {
+                FriendRepository.friendRelation(
+                    accountId,
+                    if (targetBlocked) "block" else "unblock",
+                    friend.relationId
+                )
+                updateFriend(friend.id) { it.copy(blocked = targetBlocked) }
+                showMessage(if (targetBlocked) "已拉黑" else "已取消拉黑")
+            } catch (e: Exception) {
+                showMessage(e.toUserMessage())
+            } finally {
+                _uiState.update { it.copy(blockingIds = it.blockingIds - friend.id) }
+            }
+        }
+    }
+
+    fun batchBlock() = batchRelation("block", "已批量拉黑")
+
+    fun batchUnblock() = batchRelation("unblock", "已批量取消拉黑")
+
+    private fun batchRelation(action: String, successMessage: String) {
+        if (_uiState.value.batchRunning) return
+        val ids = _uiState.value.selection.toList()
+        if (ids.isEmpty()) return
+        val accountId = _uiState.value.selectedAccountId ?: return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(blockingIds = it.blockingIds + ids, batchRunning = true)
+            }
+            val friendsById = _uiState.value.friends.associateBy { it.id }
+            val successIds = mutableListOf<String>()
+            val failures = mutableListOf<String>()
+            var successCount = 0
+
+            try {
+                for (id in ids) {
+                    val friend = friendsById[id] ?: continue
+                    try {
+                        FriendRepository.friendRelation(accountId, action, friend.relationId)
+                        successIds.add(id)
+                        successCount++
+                    } catch (e: Exception) {
+                        failures.add(e.toUserMessage())
+                    }
+                }
+
+                val blocked = action == "block"
+                _uiState.update { state ->
+                    state.copy(
+                        friends = state.friends.map { friend ->
+                            when {
+                                friend.id in successIds && blocked -> friend.copy(blocked = true)
+                                friend.id in successIds && !blocked -> friend.copy(blocked = false)
+                                else -> friend
+                            }
+                        },
+                        selection = emptySet(),
+                        selectionMode = false
+                    )
+                }
+
+                showMessage(
+                    if (failures.isEmpty()) successMessage
+                    else "成功 $successCount 个，失败 ${failures.size} 个"
+                )
+            } finally {
+                _uiState.update {
+                    it.copy(
+                        blockingIds = it.blockingIds - ids.toSet(),
+                        batchRunning = false
+                    )
+                }
+            }
+        }
+    }
+
+    fun batchDelete() {
+        if (_uiState.value.batchRunning) return
+        val ids = _uiState.value.selection.toList()
+        if (ids.isEmpty()) return
+        val accountId = _uiState.value.selectedAccountId ?: return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(blockingIds = it.blockingIds + ids, batchRunning = true)
+            }
+            val friendsById = _uiState.value.friends.associateBy { it.id }
+            val successIds = mutableListOf<String>()
+            val failures = mutableListOf<String>()
+            var successCount = 0
+
+            try {
+                for (id in ids) {
+                    val friend = friendsById[id] ?: continue
+                    try {
+                        FriendRepository.friendRelation(accountId, "delete", friend.relationId)
+                        successIds.add(id)
+                        successCount++
+                    } catch (e: Exception) {
+                        failures.add(e.toUserMessage())
+                    }
+                }
+
+                _uiState.update { state ->
+                    state.copy(
+                        friends = state.friends.filterNot { it.id in successIds },
+                        selection = emptySet(),
+                        selectionMode = false
+                    )
+                }
+
+                showMessage(
+                    if (failures.isEmpty()) "已批量删除"
+                    else "成功 $successCount 个，失败 ${failures.size} 个"
+                )
+            } finally {
+                _uiState.update {
+                    it.copy(
+                        blockingIds = it.blockingIds - ids.toSet(),
+                        batchRunning = false
+                    )
+                }
+            }
+        }
+    }
+
+    fun consumeMessage() {
+        _uiState.update { it.copy(snackbarMessage = null) }
+    }
+
+    private fun updateFriend(id: String, transform: (Friend) -> Friend) {
+        _uiState.update { state ->
+            state.copy(friends = state.friends.map { if (it.id == id) transform(it) else it })
+        }
+    }
+
+    private fun showMessage(message: String) {
+        _uiState.update { it.copy(snackbarMessage = message) }
+    }
+
+    private fun Throwable.toUserMessage(): String =
+        (this as? ApiException)?.message ?: message ?: "网络错误"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FriendManagementScreen(viewModel: FriendManagementViewModel = viewModel()) {
+    val state by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    var renameTarget by remember { mutableStateOf<Friend?>(null) }
+    var detailTarget by remember { mutableStateOf<Friend?>(null) }
+    var deleteTarget by remember { mutableStateOf<Friend?>(null) }
+    var accountMenuExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.snackbarMessage) {
+        state.snackbarMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
+
+    val selectedAccount = state.accounts.firstOrNull { it.id == state.selectedAccountId }
+
+    val filteredFriends = remember(state.friends, state.selectedGroup, state.searchQuery) {
+        val query = state.searchQuery.trim()
+        state.friends.filter { friend ->
+            (state.selectedGroup == null || friend.group == state.selectedGroup) &&
+                (query.isEmpty() ||
+                    friend.name.contains(query, true) ||
+                    friend.nickname.contains(query, true) ||
+                    friend.relationId.contains(query, true) ||
+                    friend.gameUserId.contains(query, true) ||
+                    (friend.group?.contains(query, true) == true))
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("好友管理") },
+                actions = {
+                    if (!state.selectionMode) {
+                        TextButton(
+                            onClick = { viewModel.enterSelectionMode() },
+                            enabled = state.friends.isNotEmpty()
+                        ) {
+                            Text("多选")
+                        }
+                        IconButton(onClick = { viewModel.refresh() }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "刷新")
+                        }
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            if (state.selectionMode) {
+                MultiSelectBottomBar(
+                    selectedCount = state.selection.size,
+                    batchRunning = state.batchRunning,
+                    onBlock = { viewModel.batchBlock() },
+                    onUnblock = { viewModel.batchUnblock() },
+                    onDelete = { viewModel.batchDelete() },
+                    onCancel = { viewModel.exitSelectionMode() }
+                )
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (state.accounts.isNotEmpty()) {
+                ExposedDropdownMenuBox(
+                    expanded = accountMenuExpanded,
+                    onExpandedChange = { accountMenuExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedAccount?.displayName ?: "选择子账号",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("子账号") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountMenuExpanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = accountMenuExpanded,
+                        onDismissRequest = { accountMenuExpanded = false }
+                    ) {
+                        state.accounts.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.displayName) },
+                                onClick = {
+                                    viewModel.selectAccount(account.id)
+                                    accountMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            selectedAccount?.let { account ->
+                SubAccountCard(account)
+            }
+
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = viewModel::setSearchQuery,
+                placeholder = { Text("搜索好友 / 备注 / 好友ID / 游戏ID") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (state.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "清空")
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            if (state.groups.isNotEmpty()) {
+                GroupFilterRow(
+                    groups = state.groups,
+                    selectedGroup = state.selectedGroup,
+                    onSelect = viewModel::selectGroup
+                )
+            }
+
+            when {
+                state.loading && state.friends.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                state.error != null && state.friends.isEmpty() -> {
+                    ErrorState(
+                        message = state.error ?: "",
+                        onRetry = { viewModel.refresh() }
+                    )
+                }
+
+                filteredFriends.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "没有找到好友",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(filteredFriends, key = { it.id }) { friend ->
+                            FriendRow(
+                                friend = friend,
+                                selected = friend.id in state.selection,
+                                selectionMode = state.selectionMode,
+                                busy = friend.id in state.blockingIds,
+                                onOpen = { detailTarget = friend },
+                                onLongClick = { viewModel.longPressSelection(friend.id) },
+                                onToggle = { viewModel.toggleSelection(friend.id) },
+                                onRename = { renameTarget = friend },
+                                onToggleBlock = { viewModel.toggleBlock(friend) },
+                                onDelete = { deleteTarget = friend },
+                                onGroupClick = { group -> viewModel.selectGroup(group) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    renameTarget?.let { friend ->
+        RenameDialog(
+            initialName = friend.name,
+            onConfirm = { newName ->
+                viewModel.rename(friend.id, newName)
+                renameTarget = null
+            },
+            onDismiss = { renameTarget = null }
+        )
+    }
+
+    deleteTarget?.let { friend ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("删除好友") },
+            text = { Text("确定删除好友「${friend.name}」吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteFriend(friend.id)
+                        deleteTarget = null
+                    }
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    detailTarget?.let { friend ->
+        FriendDetailDialog(
+            friend = friend,
+            subAccountName = selectedAccount?.displayName,
+            onDismiss = { detailTarget = null }
+        )
+    }
+}
+
+@Composable
+private fun SubAccountCard(account: Account) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                "当前子账号",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                account.displayName,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                "账号：${account.account}  平台：${account.platform}  状态：${account.status}",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                "游戏ID：${account.gameUserId}  好友ID：${account.friendId}",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GroupFilterRow(
+    groups: List<String>,
+    selectedGroup: String?,
+    onSelect: (String?) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = selectedGroup == null,
+            onClick = { onSelect(null) },
+            label = { Text("全部") }
+        )
+        groups.forEach { group ->
+            FilterChip(
+                selected = selectedGroup == group,
+                onClick = { onSelect(group) },
+                label = { Text(group) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ErrorState(message: String, onRetry: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(message, color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = onRetry) {
+                Text("重试")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FriendRow(
+    friend: Friend,
+    selected: Boolean,
+    selectionMode: Boolean,
+    busy: Boolean,
+    onOpen: () -> Unit,
+    onLongClick: () -> Unit,
+    onToggle: () -> Unit,
+    onRename: () -> Unit,
+    onToggleBlock: () -> Unit,
+    onDelete: () -> Unit,
+    onGroupClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val rowModifier = if (selectionMode) {
+        Modifier.clickable { onToggle() }
+    } else {
+        Modifier.combinedClickable(
+            onClick = onOpen,
+            onLongClick = onLongClick
+        )
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(rowModifier),
+        border = if (selected) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        }
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (selectionMode) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onToggle() }
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (friend.online) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = friend.name.take(1).ifBlank { "?" },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (friend.online) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        friend.name.ifBlank { "未命名" },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (friend.blocked) {
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                "已拉黑",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                    if (friend.online) {
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                "在线",
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+
+                if (friend.nickname.isNotBlank() && friend.nickname != friend.name) {
+                    Text(
+                        "备注：${friend.nickname}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Row {
+                    if (friend.relationId.isNotBlank()) {
+                        Text(
+                            "好友ID：${friend.relationId}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (friend.gameUserId.isNotBlank()) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "游戏ID：${friend.gameUserId}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                friend.group?.let { group ->
+                    TextButton(
+                        onClick = { onGroupClick(group) },
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Text(
+                            "分组：$group",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            if (!selectionMode) {
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        if (busy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("修改备注") },
+                            onClick = {
+                                menuExpanded = false
+                                onRename()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (friend.blocked) "取消拉黑" else "拉黑") },
+                            onClick = {
+                                menuExpanded = false
+                                onToggleBlock()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("删除") },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MultiSelectBottomBar(
+    selectedCount: Int,
+    batchRunning: Boolean,
+    onBlock: () -> Unit,
+    onUnblock: () -> Unit,
+    onDelete: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shadowElevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "已选 $selectedCount 项",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                if (batchRunning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+                TextButton(onClick = onCancel) {
+                    Text("取消")
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                TextButton(
+                    onClick = onBlock,
+                    enabled = selectedCount > 0 && !batchRunning
+                ) {
+                    Text("拉黑")
+                }
+                TextButton(
+                    onClick = onUnblock,
+                    enabled = selectedCount > 0 && !batchRunning
+                ) {
+                    Text("取消拉黑")
+                }
+                TextButton(
+                    onClick = onDelete,
+                    enabled = selectedCount > 0 && !batchRunning
+                ) {
+                    Text("删除")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenameDialog(
+    initialName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember(initialName) { mutableStateOf(initialName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("修改备注") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                placeholder = { Text("输入新名称") },
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name.trim()) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun FriendDetailDialog(
+    friend: Friend,
+    subAccountName: String?,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(friend.name.ifBlank { "好友详情" }) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (friend.nickname.isNotBlank()) {
+                    Text("备注：${friend.nickname}")
+                }
+                Text("好友ID：${friend.relationId.ifBlank { "-" }}")
+                Text("游戏ID：${friend.gameUserId.ifBlank { "-" }}")
+                Text("分组：${friend.group ?: "-"}")
+                Text("平台：${friend.platform ?: "-"}")
+                Text("状态：${if (friend.blocked) "已拉黑" else "正常"}${if (friend.online) " · 在线" else ""}")
+                if (subAccountName != null) {
+                    Text("所属子账号：$subAccountName")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        }
+    )
+}

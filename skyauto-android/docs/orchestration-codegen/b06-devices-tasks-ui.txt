@@ -1,0 +1,1610 @@
+--- settings.gradle.kts ---
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "SkyAuto"
+include(":app")
+
+--- build.gradle.kts ---
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.2.2")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22")
+    }
+}
+
+--- app/build.gradle.kts ---
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.skyauto.app"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.skyauto.app"
+        minSdk = 31
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.10"
+    }
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+}
+
+--- app/proguard-rules.pro ---
+# No custom rules required.
+
+--- app/src/main/AndroidManifest.xml ---
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SkyAuto">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
+
+--- app/src/main/res/values/strings.xml ---
+<resources>
+    <string name="app_name">Sky Auto</string>
+</resources>
+
+--- app/src/main/res/values/themes.xml ---
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SkyAuto" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
+
+--- app/src/main/java/com/skyauto/app/data/Models.kt ---
+package com.skyauto.app.data
+
+data class Device(
+    val id: String,
+    val name: String,
+    val model: String,
+    val status: String,
+    val online: Boolean,
+    val accountIds: List<String>
+)
+
+data class Account(
+    val id: String,
+    val displayName: String,
+    val account: String,
+    val platform: String
+)
+
+data class TaskType(
+    val id: String,
+    val name: String,
+    val reward: String,
+    val needsManualConfirm: Boolean,
+    val category: String
+)
+
+data class Task(
+    val id: String,
+    val type: String,
+    val typeName: String,
+    val status: String,
+    val progress: Int,
+    val reward: String,
+    val message: String,
+    val accountIds: List<String>,
+    val createdAt: String
+) {
+    val isTerminal: Boolean
+        get() = status in setOf("success", "completed", "failed", "claimed", "canceled", "expired")
+
+    val canClaim: Boolean
+        get() = status in setOf("success", "completed")
+
+    val needsManualConfirm: Boolean
+        get() {
+            val manual = setOf("sms", "bilibili", "huawei")
+            val typeHit = manual.any { type.contains(it, ignoreCase = true) || typeName.contains(it, ignoreCase = true) }
+            val statusHit = status.startsWith("need_") ||
+                status.contains("confirm", ignoreCase = true) ||
+                status.contains("verify", ignoreCase = true) ||
+                status.contains("manual", ignoreCase = true)
+            return typeHit && statusHit
+        }
+}
+
+enum class PollState {
+    IDLE,
+    POLLING,
+    WAITING_MANUAL,
+    DONE,
+    ERROR
+}
+
+--- app/src/main/java/com/skyauto/app/data/ApiClient.kt ---
+package com.skyauto.app.data
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.JavaNetCookieJar
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.net.CookieManager
+import java.security.SecureRandom
+import java.util.Base64
+import java.util.concurrent.TimeUnit
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+import javax.crypto.SecretKey
+
+object ApiClient {
+
+    private const val BASE_URL = "https://sky.angin.cn"
+
+    private val cookieManager = CookieManager()
+
+    private val client = OkHttpClient.Builder()
+        .cookieJar(JavaNetCookieJar(cookieManager))
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .writeTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    @Volatile
+    var apiRoot: String = "/api"
+        private set
+
+    private var aesKey: SecretKey? = null
+    private var configCache: Pair<Long, String>? = null
+
+    fun updateApiRoot(root: String) {
+        if (root.isNotBlank()) apiRoot = root
+    }
+
+    fun clearAuthCache() {
+        aesKey = null
+        configCache = null
+    }
+
+    private suspend fun ensureKey(): SecretKey? = withContext(Dispatchers.IO) {
+        aesKey?.let { return@withContext it }
+
+        val url = BASE_URL + apiRoot + "/crypto/key"
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@withContext null
+            val json = JSONObject(response.body?.string() ?: "{}")
+            if (!json.optBoolean("success") || !json.has("key")) return@withContext null
+            val keyBytes = Base64.getDecoder().decode(json.getString("key"))
+            SecretKeySpec(keyBytes, "AES")
+        }.also { aesKey = it }
+    }
+
+    private fun encrypt(plain: String, key: SecretKey): String {
+        val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(128, iv))
+        val cipherText = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
+        val out = ByteArray(12 + cipherText.size)
+        System.arraycopy(iv, 0, out, 0, 12)
+        System.arraycopy(cipherText, 0, out, 12, cipherText.size)
+        return Base64.getEncoder().encodeToString(out)
+    }
+
+    private fun decrypt(data: String, key: SecretKey): String {
+        val bytes = Base64.getDecoder().decode(data)
+        val iv = bytes.copyOfRange(0, 12)
+        val cipherText = bytes.copyOfRange(12, bytes.size)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv))
+        return String(cipher.doFinal(cipherText), Charsets.UTF_8)
+    }
+
+    suspend fun request(
+        path: String,
+        method: String = "GET",
+        body: String? = null,
+        headers: Map<String, String> = emptyMap()
+    ): String = withContext(Dispatchers.IO) {
+        val fullPath = if (path.startsWith("/")) path else "/$path"
+        val url = BASE_URL + fullPath
+
+        val isConfigSite = method.equals("GET", true) && body == null && fullPath.contains("/config/site")
+        if (isConfigSite) {
+            configCache?.let {
+                if (System.currentTimeMillis() - it.first < 10_000) {
+                    return@withContext it.second
+                }
+            }
+        }
+
+        val isAuthRequest = !method.equals("GET", true) &&
+            listOf("/auth/login", "/auth/logout", "/auth/register").any { fullPath.contains(it) }
+        if (isAuthRequest) clearAuthCache()
+
+        val requestBuilder = Request.Builder().url(url)
+        headers.forEach { (k, v) -> requestBuilder.header(k, v) }
+
+        var finalBody = body
+        var encrypted = false
+
+        if (body != null && !fullPath.contains("/api/crypto/key")) {
+            val key = ensureKey() ?: throw Exception("无法获取加密密钥")
+            finalBody = encrypt(body, key)
+            encrypted = true
+            requestBuilder.header("X-Encrypted", "1")
+        }
+
+        if (finalBody != null) {
+            val mediaType = headers["Content-Type"]?.toMediaType()
+            requestBuilder.method(method.uppercase(), finalBody.toRequestBody(mediaType))
+        } else {
+            requestBuilder.method(method.uppercase(), null)
+        }
+
+        if (isAuthRequest) clearAuthCache()
+
+        client.newCall(requestBuilder.build()).execute().use { response ->
+            val responseBody = response.body?.string() ?: ""
+            val result = if (response.header("X-Encrypted") == "1") {
+                val key = ensureKey() ?: throw Exception("无法获取加密密钥")
+                decrypt(responseBody, key)
+            } else {
+                responseBody
+            }
+
+            if (!response.isSuccessful) {
+                throw Exception("HTTP ${response.code}: ${result.take(200)}")
+            }
+
+            if (isConfigSite) {
+                configCache = System.currentTimeMillis() to result
+            }
+
+            result
+        }
+    }
+}
+
+--- app/src/main/java/com/skyauto/app/data/Repository.kt ---
+package com.skyauto.app.data
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+class Repository {
+
+    suspend fun fetchSiteConfig() {
+        try {
+            val body = ApiClient.request("/config/site")
+            val root = JSONObject(body)
+            val config = root.optJSONObject("config") ?: return
+            val endpoints = config.optJSONObject("serverEndpoints")
+                ?: config.optJSONObject("server_endpoints")
+                ?: return
+            val api = endpoints.optString("api")
+            if (api.isNotBlank()) ApiClient.updateApiRoot(api)
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun getDevices(): List<Device> {
+        val body = ApiClient.request("/devices")
+        val json = JSONObject(body)
+        val array = json.optJSONArray("devices") ?: JSONArray()
+        return (0 until array.length()).map { array.getJSONObject(it).toDevice() }
+    }
+
+    suspend fun createDevice(name: String, model: String): Device {
+        val payload = JSONObject()
+            .put("name", name)
+            .put("model", model)
+            .put("simulate_online", true)
+        val body = ApiClient.request(
+            "/devices",
+            "POST",
+            payload.toString(),
+            mapOf("Content-Type" to "application/json")
+        )
+        val json = JSONObject(body)
+        return json.optJSONObject("device")?.toDevice() ?: json.toDevice()
+    }
+
+    suspend fun deleteDevice(deviceId: String) {
+        ApiClient.request("/devices/$deviceId", "DELETE")
+    }
+
+    suspend fun setDeviceOnline(deviceId: String, online: Boolean) {
+        val payload = JSONObject().put("online", online)
+        ApiClient.request(
+            "/devices/$deviceId/simulate",
+            "POST",
+            payload.toString(),
+            mapOf("Content-Type" to "application/json")
+        )
+    }
+
+    suspend fun bindAccount(deviceId: String, accountId: String) {
+        val payload = JSONObject()
+            .put("action", "bind")
+            .put("account_id", accountId)
+        ApiClient.request(
+            "/devices/$deviceId/accounts",
+            "POST",
+            payload.toString(),
+            mapOf("Content-Type" to "application/json")
+        )
+    }
+
+    suspend fun unbindAccount(deviceId: String, accountId: String) {
+        val payload = JSONObject()
+            .put("action", "unbind")
+            .put("account_id", accountId)
+        ApiClient.request(
+            "/devices/$deviceId/accounts",
+            "POST",
+            payload.toString(),
+            mapOf("Content-Type" to "application/json")
+        )
+    }
+
+    suspend fun getAccounts(): List<Account> {
+        val body = ApiClient.request("/accounts")
+        val json = JSONObject(body)
+        val array = json.optJSONArray("accounts") ?: JSONArray()
+        return (0 until array.length()).map { array.getJSONObject(it).toAccount() }
+    }
+
+    suspend fun getTaskTypes(): List<TaskType> {
+        val body = ApiClient.request("/tasks/types")
+        val json = JSONObject(body)
+        val array = json.optJSONArray("task_types")
+            ?: json.optJSONArray("types")
+            ?: JSONArray()
+        return (0 until array.length()).map { array.getJSONObject(it).toTaskType() }
+    }
+
+    suspend fun getTasks(): List<Task> {
+        val body = ApiClient.request("/tasks")
+        val json = JSONObject(body)
+        val array = json.optJSONArray("tasks") ?: JSONArray()
+        return (0 until array.length()).map { array.getJSONObject(it).toTask() }
+    }
+
+    suspend fun createTask(
+        type: String,
+        accountIds: List<String>,
+        deviceId: String?
+    ): Task {
+        val payload = JSONObject()
+            .put("task_type", type)
+            .put("account_ids", JSONArray(accountIds))
+        if (!deviceId.isNullOrBlank()) payload.put("device_id", deviceId)
+
+        val body = ApiClient.request(
+            "/tasks",
+            "POST",
+            payload.toString(),
+            mapOf("Content-Type" to "application/json")
+        )
+        val json = JSONObject(body)
+        return json.optJSONObject("task")?.toTask() ?: json.toTask()
+    }
+
+    suspend fun getTaskStatus(taskId: String): Task {
+        val body = ApiClient.request("/tasks/$taskId")
+        val json = JSONObject(body)
+        return json.optJSONObject("task")?.toTask() ?: json.toTask()
+    }
+
+    suspend fun claimTask(taskId: String): Task {
+        val body = ApiClient.request(
+            "/tasks/$taskId/claim",
+            "POST",
+            "{}",
+            mapOf("Content-Type" to "application/json")
+        )
+        val json = JSONObject(body)
+        return json.optJSONObject("task")?.toTask() ?: json.toTask()
+    }
+
+    suspend fun confirmTask(taskId: String): Task {
+        val body = ApiClient.request(
+            "/tasks/$taskId/confirm",
+            "POST",
+            "{}",
+            mapOf("Content-Type" to "application/json")
+        )
+        val json = JSONObject(body)
+        return json.optJSONObject("task")?.toTask() ?: json.toTask()
+    }
+
+    suspend fun cancelTask(taskId: String) {
+        ApiClient.request(
+            "/tasks/$taskId/cancel",
+            "POST",
+            "{}",
+            mapOf("Content-Type" to "application/json")
+        )
+    }
+
+    private fun JSONObject.toDevice(): Device {
+        val accountArray = optJSONArray("account_ids") ?: JSONArray()
+        return Device(
+            id = optString("id"),
+            name = optString("name").ifEmpty { optString("display_username") },
+            model = optString("model"),
+            status = optString("status", "offline"),
+            online = optBoolean("online") || optString("status").equals("online", true),
+            accountIds = (0 until accountArray.length()).map { accountArray.optString(it) }
+        )
+    }
+
+    private fun JSONObject.toAccount(): Account {
+        return Account(
+            id = optString("id"),
+            displayName = optString("display_username")
+                .ifEmpty { optString("nickname") }
+                .ifEmpty { optString("account") },
+            account = optString("account"),
+            platform = optString("platform")
+        )
+    }
+
+    private fun JSONObject.toTaskType(): TaskType {
+        return TaskType(
+            id = optString("id").ifEmpty { optString("type") },
+            name = optString("name").ifEmpty { optString("task_type") },
+            reward = optString("reward").ifEmpty { optString("reward_text") },
+            needsManualConfirm = optBoolean("needs_manual_confirm")
+                || optBoolean("manual_confirm")
+                || optBoolean("needs_verify"),
+            category = optString("category")
+        )
+    }
+
+    private fun JSONObject.toTask(): Task {
+        val accountArray = optJSONArray("account_ids") ?: JSONArray()
+        val status = optString("status", "pending")
+        return Task(
+            id = optString("id"),
+            type = optString("task_type").ifEmpty { optString("type") },
+            typeName = optString("task_type_name")
+                .ifEmpty { optString("type_name") }
+                .ifEmpty { optString("task_type") },
+            status = status,
+            progress = optInt("progress", if (status == "success" || status == "completed") 100 else 0),
+            reward = optString("reward").ifEmpty { optString("reward_text") },
+            message = optString("message").ifEmpty { optString("log") },
+            accountIds = (0 until accountArray.length()).map { accountArray.optString(it) },
+            createdAt = optString("created_at")
+        )
+    }
+}
+
+--- app/src/main/java/com/skyauto/app/ui/DeviceViewModel.kt ---
+package com.skyauto.app.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.skyauto.app.data.Account
+import com.skyauto.app.data.Device
+import com.skyauto.app.data.Repository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+class DeviceViewModel : ViewModel() {
+
+    private val repo = Repository()
+
+    private val _devices = MutableStateFlow<List<Device>>(emptyList())
+    val devices: StateFlow<List<Device>> = _devices.asStateFlow()
+
+    private val _accounts = MutableStateFlow<List<Account>>(emptyList())
+    val accounts: StateFlow<List<Account>> = _accounts.asStateFlow()
+
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    fun load() {
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            try {
+                repo.fetchSiteConfig()
+                _devices.value = repo.getDevices()
+                _accounts.value = repo.getAccounts()
+            } catch (e: Exception) {
+                _error.value = e.message ?: "加载失败"
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun createDevice(name: String, model: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            try {
+                val created = repo.createDevice(name, model)
+                _devices.value = listOf(created) + _devices.value.filter { it.id != created.id }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "创建设备失败"
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun deleteDevice(deviceId: String) {
+        viewModelScope.launch {
+            try {
+                repo.deleteDevice(deviceId)
+                _devices.value = _devices.value.filter { it.id != deviceId }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "删除失败"
+            }
+        }
+    }
+
+    fun setDeviceOnline(deviceId: String, online: Boolean) {
+        viewModelScope.launch {
+            try {
+                repo.setDeviceOnline(deviceId, online)
+                _devices.value = _devices.value.map {
+                    if (it.id == deviceId) it.copy(online = online, status = if (online) "online" else "offline") else it
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "模拟注入失败"
+            }
+        }
+    }
+
+    fun bindAccounts(deviceId: String, accountIds: List<String>) {
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            try {
+                val current = _devices.value.firstOrNull { it.id == deviceId } ?: return@launch
+                val target = accountIds.toSet()
+                val existing = current.accountIds.toSet()
+                (target - existing).forEach { repo.bindAccount(deviceId, it) }
+                (existing - target).forEach { repo.unbindAccount(deviceId, it) }
+                _devices.value = repo.getDevices()
+            } catch (e: Exception) {
+                _error.value = e.message ?: "绑定失败"
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+}
+
+--- app/src/main/java/com/skyauto/app/ui/TaskViewModel.kt ---
+package com.skyauto.app.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.skyauto.app.data.PollState
+import com.skyauto.app.data.Repository
+import com.skyauto.app.data.Task
+import com.skyauto.app.data.TaskType
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+class TaskViewModel : ViewModel() {
+
+    private val repo = Repository()
+
+    private val _taskTypes = MutableStateFlow<List<TaskType>>(emptyList())
+    val taskTypes: StateFlow<List<TaskType>> = _taskTypes.asStateFlow()
+
+    private val _tasks = MutableStateFlow<List<Task>>(emptyList())
+    val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+
+    private val _pollState = MutableStateFlow(PollState.IDLE)
+    val pollState: StateFlow<PollState> = _pollState.asStateFlow()
+
+    private val _confirmTask = MutableStateFlow<Task?>(null)
+    val confirmTask: StateFlow<Task?> = _confirmTask.asStateFlow()
+
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private var pollJob: Job? = null
+
+    fun load() {
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            try {
+                repo.fetchSiteConfig()
+                _taskTypes.value = repo.getTaskTypes()
+                _tasks.value = repo.getTasks()
+                _confirmTask.value = _tasks.value.firstOrNull { it.needsManualConfirm }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "加载失败"
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun createTask(type: String, accountIds: List<String>, deviceId: String?) {
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            try {
+                val task = repo.createTask(type, accountIds, deviceId)
+                _tasks.value = listOf(task) + _tasks.value.filter { it.id != task.id }
+                _confirmTask.value = null
+                _pollState.value = PollState.POLLING
+                startPolling(task.id)
+            } catch (e: Exception) {
+                _error.value = e.message ?: "创建任务失败"
+                _pollState.value = PollState.ERROR
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun startPolling(taskId: String) {
+        pollJob?.cancel()
+        _pollState.value = PollState.POLLING
+        pollJob = viewModelScope.launch {
+            while (isActive) {
+                try {
+                    val task = repo.getTaskStatus(taskId)
+                    _tasks.value = _tasks.value.map { if (it.id == task.id) task else it }
+
+                    if (task.needsManualConfirm) {
+                        _pollState.value = PollState.WAITING_MANUAL
+                        _confirmTask.value = task
+                        break
+                    }
+
+                    if (task.isTerminal) {
+                        _pollState.value = PollState.DONE
+                        break
+                    }
+
+                    delay(2000)
+                } catch (e: Exception) {
+                    _error.value = e.message ?: "轮询失败"
+                    _pollState.value = PollState.ERROR
+                    break
+                }
+            }
+        }
+    }
+
+    fun refreshTasks() {
+        viewModelScope.launch {
+            try {
+                _tasks.value = repo.getTasks()
+                _confirmTask.value = _tasks.value.firstOrNull { it.needsManualConfirm }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "刷新失败"
+            }
+        }
+    }
+
+    fun claim(task: Task) {
+        viewModelScope.launch {
+            try {
+                val updated = repo.claimTask(task.id)
+                _tasks.value = _tasks.value.map { if (it.id == updated.id) updated else it }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "领取失败"
+            }
+        }
+    }
+
+    fun cancel(task: Task) {
+        viewModelScope.launch {
+            try {
+                repo.cancelTask(task.id)
+                _tasks.value = _tasks.value.filter { it.id != task.id }
+                if (_confirmTask.value?.id == task.id) {
+                    _confirmTask.value = null
+                    _pollState.value = PollState.DONE
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "取消失败"
+            }
+        }
+    }
+
+    fun confirmManual() {
+        val task = _confirmTask.value ?: return
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            try {
+                val updated = repo.confirmTask(task.id)
+                _tasks.value = _tasks.value.map { if (it.id == updated.id) updated else it }
+                _confirmTask.value = null
+                _pollState.value = PollState.POLLING
+                startPolling(updated.id)
+            } catch (e: Exception) {
+                _error.value = e.message ?: "确认失败"
+                _pollState.value = PollState.ERROR
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun dismissConfirm() {
+        _confirmTask.value = null
+    }
+}
+
+--- app/src/main/java/com/skyauto/app/ui/Theme.kt ---
+package com.skyauto.app.ui
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+
+private val LightColors = lightColorScheme(
+    primary = Color(0xFF3D5AFE),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFE0E8FF),
+    onPrimaryContainer = Color(0xFF00104B),
+    secondary = Color(0xFF00BFA5),
+    surface = Color(0xFFF7F9FC),
+    background = Color(0xFFF7F9FC)
+)
+
+private val DarkColors = darkColorScheme(
+    primary = Color(0xFFB4C6FF),
+    onPrimary = Color(0xFF00104B),
+    primaryContainer = Color(0xFF243878),
+    onPrimaryContainer = Color(0xFFDCE3FF),
+    secondary = Color(0xFF00E5C7),
+    surface = Color(0xFF121212),
+    background = Color(0xFF121212)
+)
+
+@Composable
+fun SkyAutoTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
+        content = content
+    )
+}
+
+--- app/src/main/java/com/skyauto/app/MainActivity.kt ---
+package com.skyauto.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Task
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.skyauto.app.ui.DeviceScreen
+import com.skyauto.app.ui.DeviceViewModel
+import com.skyauto.app.ui.SkyAutoTheme
+import com.skyauto.app.ui.TaskScreen
+import com.skyauto.app.ui.TaskViewModel
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            SkyAutoTheme {
+                var selectedTab by rememberSaveable { mutableStateOf(0) }
+                var selectedDeviceId by rememberSaveable { mutableStateOf<String?>(null) }
+
+                val deviceViewModel: DeviceViewModel = viewModel()
+                val taskViewModel: TaskViewModel = viewModel()
+
+                LaunchedEffect(Unit) {
+                    deviceViewModel.load()
+                    taskViewModel.load()
+                }
+
+                Scaffold(
+                    bottomBar = {
+                        NavigationBar {
+                            NavigationBarItem(
+                                selected = selectedTab == 0,
+                                onClick = { selectedTab = 0 },
+                                icon = { Icon(Icons.Filled.Devices, contentDescription = "设备") },
+                                label = { Text("设备") }
+                            )
+                            NavigationBarItem(
+                                selected = selectedTab == 1,
+                                onClick = { selectedTab = 1 },
+                                icon = { Icon(Icons.Filled.Task, contentDescription = "任务") },
+                                label = { Text("任务") }
+                            )
+                        }
+                    }
+                ) { padding ->
+                    when (selectedTab) {
+                        0 -> DeviceScreen(
+                            viewModel = deviceViewModel,
+                            modifier = Modifier.padding(padding),
+                            selectedDeviceId = selectedDeviceId,
+                            onSelectDevice = { selectedDeviceId = it }
+                        )
+                        1 -> TaskScreen(
+                            viewModel = taskViewModel,
+                            modifier = Modifier.padding(padding),
+                            selectedDeviceId = selectedDeviceId
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+--- app/src/main/java/com/skyauto/app/ui/DeviceScreen.kt ---
+package com.skyauto.app.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.skyauto.app.data.Account
+import com.skyauto.app.data.Device
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DeviceScreen(
+    viewModel: DeviceViewModel,
+    modifier: Modifier = Modifier,
+    selectedDeviceId: String?,
+    onSelectDevice: (String) -> Unit
+) {
+    val devices by viewModel.devices.collectAsState()
+    val accounts by viewModel.accounts.collectAsState()
+    val loading by viewModel.loading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var bindDevice by remember { mutableStateOf<Device?>(null) }
+
+    Box(modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (loading && devices.isEmpty()) {
+                item { Text("加载中…", modifier = Modifier.padding(16.dp)) }
+            }
+            error?.let {
+                item {
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+            items(devices, key = { it.id }) { device ->
+                DeviceCard(
+                    device = device,
+                    selected = device.id == selectedDeviceId,
+                    onSelect = { onSelectDevice(device.id) },
+                    onBind = { bindDevice = device },
+                    onDelete = { viewModel.deleteDevice(device.id) },
+                    onToggleOnline = { viewModel.setDeviceOnline(device.id, it) }
+                )
+            }
+            if (devices.isEmpty() && !loading) {
+                item {
+                    Text(
+                        "暂无设备，点击右下角新建",
+                        modifier = Modifier.padding(32.dp),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+        }
+
+        FloatingActionButton(
+            onClick = { showCreateDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp)
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "新建设备")
+        }
+    }
+
+    if (showCreateDialog) {
+        NewDeviceDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { name, model ->
+                viewModel.createDevice(name, model)
+                showCreateDialog = false
+            }
+        )
+    }
+
+    bindDevice?.let { device ->
+        BindAccountsDialog(
+            device = device,
+            accounts = accounts,
+            initialAccountIds = device.accountIds,
+            onDismiss = { bindDevice = null },
+            onSave = { ids ->
+                viewModel.bindAccounts(device.id, ids)
+                bindDevice = null
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeviceCard(
+    device: Device,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onBind: () -> Unit,
+    onDelete: () -> Unit,
+    onToggleOnline: (Boolean) -> Unit
+) {
+    Card(
+        onClick = onSelect,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        )
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(device.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${device.model} · ${device.status}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = device.online,
+                    onCheckedChange = onToggleOnline
+                )
+            }
+            Spacer(Modifier.padding(top = 8.dp))
+            Text(
+                "已绑定 ${device.accountIds.size} 个账号",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Row(horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onBind) { Text("绑定账号") }
+                TextButton(onClick = onDelete) { Text("删除") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewDeviceDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String, String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var model by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("新建设备（模拟在线注入）") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("设备名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = { Text("设备型号") },
+                    placeholder = { Text("如 Pixel 7") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    "创建后自动模拟在线登录并注入。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank() && model.isNotBlank(),
+                onClick = { onCreate(name.trim(), model.trim()) }
+            ) { Text("创建") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+@Composable
+private fun BindAccountsDialog(
+    device: Device,
+    accounts: List<Account>,
+    initialAccountIds: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit
+) {
+    var selected by remember(device.id) { mutableStateOf(initialAccountIds.toSet()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("绑定账号 - ${device.name}") },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                items(accounts, key = { it.id }) { account ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selected = if (account.id in selected) {
+                                    selected - account.id
+                                } else {
+                                    selected + account.id
+                                }
+                            }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = account.id in selected,
+                            onCheckedChange = { checked ->
+                                selected = if (checked) selected + account.id else selected - account.id
+                            }
+                        )
+                        Column {
+                            Text(account.displayName)
+                            Text(
+                                "${account.account} · ${account.platform}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(selected.toList()) }) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+--- app/src/main/java/com/skyauto/app/ui/TaskScreen.kt ---
+package com.skyauto.app.ui
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.skyauto.app.data.Account
+import com.skyauto.app.data.PollState
+import com.skyauto.app.data.Task
+import com.skyauto.app.data.TaskType
+
+@Composable
+fun TaskScreen(
+    viewModel: TaskViewModel,
+    modifier: Modifier = Modifier,
+    selectedDeviceId: String?
+) {
+    val tasks by viewModel.tasks.collectAsState()
+    val types by viewModel.taskTypes.collectAsState()
+    val loading by viewModel.loading.collectAsState()
+    val error by viewModel.error.collectAsState()
+    val pollState by viewModel.pollState.collectAsState()
+    val confirmTask by viewModel.confirmTask.collectAsState()
+
+    var showCreateDialog by remember { mutableStateOf(false) }
+
+    Box(modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            PollStateBar(pollState, modifier = Modifier.fillMaxWidth())
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (loading && tasks.isEmpty()) {
+                    item { Text("加载中…", modifier = Modifier.padding(16.dp)) }
+                }
+                error?.let {
+                    item {
+                        Text(
+                            it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+                items(tasks, key = { it.id }) { task ->
+                    TaskCard(
+                        task = task,
+                        onClaim = { viewModel.claim(task) },
+                        onCancel = { viewModel.cancel(task) }
+                    )
+                }
+                if (tasks.isEmpty() && !loading) {
+                    item {
+                        Text(
+                            "暂无任务，点击右下角创建",
+                            modifier = Modifier.padding(32.dp),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        }
+
+        FloatingActionButton(
+            onClick = { showCreateDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp)
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "创建任务")
+        }
+    }
+
+    if (showCreateDialog) {
+        CreateTaskDialog(
+            types = types,
+            accounts = emptyList(),
+            selectedDeviceId = selectedDeviceId,
+            onDismiss = { showCreateDialog = false },
+            onCreate = { type, accountIds ->
+                viewModel.createTask(type, accountIds, selectedDeviceId)
+                showCreateDialog = false
+            }
+        )
+    }
+
+    confirmTask?.let { task ->
+        ManualConfirmDialog(
+            task = task,
+            onConfirm = {
+                viewModel.confirmManual()
+            },
+            onDismiss = {
+                viewModel.dismissConfirm()
+            }
+        )
+    }
+}
+
+@Composable
+private fun PollStateBar(state: PollState, modifier: Modifier = Modifier) {
+    val text = when (state) {
+        PollState.IDLE -> "空闲"
+        PollState.POLLING -> "轮询中…"
+        PollState.WAITING_MANUAL -> "等待人工确认"
+        PollState.DONE -> "任务结束"
+        PollState.ERROR -> "轮询错误"
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun TaskCard(
+    task: Task,
+    onClaim: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    task.typeName.ifEmpty { task.type },
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    task.status,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = statusColor(task.status)
+                )
+            }
+
+            if (task.reward.isNotBlank()) {
+                Text(
+                    "奖励: ${task.reward}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(Modifier.padding(top = 8.dp))
+            LinearProgressIndicator(
+                progress = { (task.progress.coerceIn(0, 100)) / 100f },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                "进度 ${task.progress.coerceIn(0, 100)}%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (task.message.isNotBlank()) {
+                Text(
+                    task.message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.End) {
+                if (task.canClaim) {
+                    Button(onClick = onClaim) { Text("领取") }
+                }
+                if (!task.isTerminal) {
+                    TextButton(onClick = onCancel) { Text("取消") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun statusColor(status: String): Color {
+    return when {
+        status.contains("success", ignoreCase = true) || status == "completed" -> Color(0xFF2E7D32)
+        status.contains("fail", ignoreCase = true) || status.contains("error", ignoreCase = true) -> MaterialTheme.colorScheme.error
+        status.contains("claim", ignoreCase = true) -> Color(0xFFF9A825)
+        status.contains("wait", ignoreCase = true) || status.startsWith("need_") -> Color(0xFFE65100)
+        else -> MaterialTheme.colorScheme.primary
+    }
+}
+
+@Composable
+private fun CreateTaskDialog(
+    types: List<TaskType>,
+    accounts: List<Account>,
+    selectedDeviceId: String?,
+    onDismiss: () -> Unit,
+    onCreate: (String, List<String>) -> Unit
+) {
+    var selectedType by remember { mutableStateOf(types.firstOrNull()?.id ?: "") }
+    var selectedAccounts by remember { mutableStateOf(setOf<String>()) }
+    var typeMenuExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("创建每日任务") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(max = 480.dp)
+            ) {
+                Text(
+                    if (selectedDeviceId.isNullOrBlank()) "设备ID: 未选择" else "设备ID: $selectedDeviceId",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.padding(top = 8.dp))
+                Text("任务类型", style = MaterialTheme.typography.titleSmall)
+
+                Box {
+                    OutlinedButton(onClick = { typeMenuExpanded = true }) {
+                        Text(types.firstOrNull { it.id == selectedType }?.name ?: "选择任务类型")
+                    }
+                    DropdownMenu(
+                        expanded = typeMenuExpanded,
+                        onDismissRequest = { typeMenuExpanded = false }
+                    ) {
+                        types.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type.name) },
+                                onClick = {
+                                    selectedType = type.id
+                                    typeMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.padding(top = 12.dp))
+                Text("选择账号", style = MaterialTheme.typography.titleSmall)
+
+                if (accounts.isEmpty()) {
+                    Text(
+                        "请先在设备页绑定账号，或通过 /api/accounts 添加。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                accounts.forEach { account ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selectedAccounts = if (account.id in selectedAccounts) {
+                                    selectedAccounts - account.id
+                                } else {
+                                    selectedAccounts + account.id
+                                }
+                            }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = account.id in selectedAccounts,
+                            onCheckedChange = { checked ->
+                                selectedAccounts = if (checked) selectedAccounts + account.id else selectedAccounts - account.id
+                            }
+                        )
+                        Column {
+                            Text(account.displayName)
+                            Text(
+                                "${account.account} · ${account.platform}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    "sms / bilibili / huawei 任务可能需要人工确认弹窗。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = selectedType.isNotBlank() &&
+                    selectedAccounts.isNotEmpty() &&
+                    !selectedDeviceId.isNullOrBlank(),
+                onClick = {
+                    onCreate(selectedType, selectedAccounts.toList())
+                }
+            ) { Text("创建") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+@Composable
+private fun ManualConfirmDialog(
+    task: Task,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("需要人工确认") },
+        text = {
+            Text(
+                "任务「${task.typeName.ifEmpty { task.type }}」需要人工确认（${task.status}）。\n\n" +
+                    "请完成短信 / B站 / 华为验证后点击“确认完成”。"
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("确认完成") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("稍后") }
+        }
+    )
+}

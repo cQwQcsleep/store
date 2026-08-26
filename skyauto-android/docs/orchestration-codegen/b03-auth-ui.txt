@@ -1,0 +1,1708 @@
+=== settings.gradle.kts ===
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = "SkyAutoClient"
+include(":app")
+
+=== build.gradle.kts ===
+plugins {
+    id("com.android.application") version "8.2.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
+}
+
+=== gradle.properties ===
+android.useAndroidX=true
+org.gradle.jvmargs=-Xmx2048m
+
+=== app/build.gradle.kts ===
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+android {
+    namespace = "com.skyangin.client"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.skyangin.client"
+        minSdk = 31
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
+
+        buildConfigField("String", "API_BASE_URL", "\"https://sky.angin.cn\"")
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.8"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.security:security-crypto:1.0.0")
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+}
+
+=== app/src/main/AndroidManifest.xml ===
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".SkyApplication"
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SkyAuto"
+        android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
+
+=== app/src/main/res/values/strings.xml ===
+<resources>
+    <string name="app_name">Sky Auto Client</string>
+    <string name="login_title">登录</string>
+    <string name="login_subtitle">欢迎使用 Sky Auto Tool</string>
+    <string name="account_label">账号</string>
+    <string name="account_placeholder">邮箱 / 手机号 / 渠道账号</string>
+    <string name="password_label">密码</string>
+    <string name="confirm_password_label">确认密码</string>
+    <string name="login_type_label">登录类型</string>
+    <string name="device_id_label">设备ID</string>
+    <string name="login_button">登录</string>
+    <string name="register_button">注册</string>
+    <string name="forgot_password_button">忘记密码</string>
+    <string name="show">显示</string>
+    <string name="hide">隐藏</string>
+    <string name="register_title">注册新账号</string>
+    <string name="verification_code_label">验证码</string>
+    <string name="sms_code_label">短信验证码</string>
+    <string name="send_code_button">发送验证码</string>
+    <string name="password_security_hint">密码将通过 AES-GCM 加密后传输，不会明文保存</string>
+    <string name="code_security_hint">验证码仅用于本次验证，请勿透露给他人</string>
+    <string name="device_id_security_hint">设备ID用于风控识别，自动生成并持久化</string>
+    <string name="welcome_title">欢迎回来</string>
+    <string name="logout_button">退出登录</string>
+    <string name="loading">加载中…</string>
+    <string name="back_button">返回</string>
+    <string name="reset_password_title">重置密码</string>
+    <string name="email_label">邮箱</string>
+    <string name="send_reset_code_button">发送重置验证码</string>
+    <string name="code_sent_message">验证码已发送，请查收</string>
+    <string name="error_generic">操作失败，请稍后重试</string>
+    <string name="error_missing_user">登录响应缺少用户信息</string>
+    <string name="password_mismatch">两次输入的密码不一致</string>
+    <string name="sms_code_not_supported">当前API暂不支持手机短信验证码</string>
+    <string name="platform_label">平台</string>
+</resources>
+
+=== app/src/main/res/values/themes.xml ===
+<resources>
+    <style name="Theme.SkyAuto" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
+
+=== app/src/main/java/com/skyangin/client/SkyApplication.kt ===
+package com.skyangin.client
+
+import android.app.Application
+import com.skyangin.client.data.ApiClient
+import com.skyangin.client.data.PersistentCookieJar
+import com.skyangin.client.data.SessionManager
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+
+class SkyApplication : Application() {
+
+    val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+    }
+
+    val cookieJar: PersistentCookieJar by lazy {
+        PersistentCookieJar(this)
+    }
+
+    val apiClient: ApiClient by lazy {
+        ApiClient(
+            baseUrl = BuildConfig.API_BASE_URL,
+            client = OkHttpClient.Builder()
+                .cookieJar(cookieJar)
+                .build(),
+            json = json,
+            cookieJar = cookieJar
+        )
+    }
+
+    val sessionManager: SessionManager by lazy {
+        SessionManager(this, apiClient)
+    }
+}
+
+=== app/src/main/java/com/skyangin/client/MainActivity.kt ===
+package com.skyangin.client
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import com.skyangin.client.ui.AppRoot
+import com.skyangin.client.ui.SkyTheme
+
+class MainActivity : ComponentActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        val app = application as SkyApplication
+
+        setContent {
+            SkyTheme {
+                AppRoot(
+                    sessionManager = app.sessionManager,
+                    apiClient = app.apiClient
+                )
+            }
+        }
+    }
+}
+
+=== app/src/main/java/com/skyangin/client/data/Models.kt ===
+package com.skyangin.client.data
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class User(
+    val id: String? = null,
+    val account: String? = null,
+    @SerialName("display_username") val displayUsername: String? = null,
+    val nickname: String? = null,
+    val status: String? = null,
+    val platform: String? = null,
+    @SerialName("login_type") val loginType: String? = null,
+    @SerialName("game_user_id") val gameUserId: String? = null,
+    @SerialName("friend_id") val friendId: String? = null,
+    @SerialName("device_id") val deviceId: String? = null,
+    val email: String? = null,
+    val mobile: String? = null
+)
+
+@Serializable
+data class AuthResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val user: User? = null,
+    val data: User? = null,
+    val token: String? = null
+) {
+    val effectiveUser: User?
+        get() = user ?: data
+}
+
+@Serializable
+data class MeResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val user: User? = null,
+    val data: User? = null
+) {
+    val effectiveUser: User?
+        get() = user ?: data
+}
+
+@Serializable
+data class MessageResponse(
+    val success: Boolean = false,
+    val message: String? = null
+)
+
+@Serializable
+internal data class KeyResponse(
+    val success: Boolean = false,
+    val key: String? = null
+)
+
+=== app/src/main/java/com/skyangin/client/data/CryptoManager.kt ===
+package com.skyangin.client.data
+
+import android.util.Base64
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
+/**
+ * 复刻前端第8393号模块的 AES-256-GCM 语义：
+ * 随机12字节IV，输出 base64(IV || ciphertext)。
+ */
+class CryptoManager(
+    private val client: OkHttpClient,
+    private val json: Json
+) {
+    @Volatile
+    private var key: SecretKey? = null
+
+    @Volatile
+    private var keyFetching: Deferred<SecretKey?>? = null
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    fun clear() {
+        key = null
+        keyFetching?.cancel()
+        keyFetching = null
+    }
+
+    private suspend fun getKey(apiBase: String): SecretKey? {
+        key?.let { return it }
+
+        keyFetching?.let { deferred ->
+            return try {
+                deferred.await()
+            } catch (e: CancellationException) {
+                null
+            }
+        }
+
+        val deferred = scope.async {
+            try {
+                val url = "$apiBase/crypto/key"
+                val request = Request.Builder().url(url).get().build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@async null
+                    val body = response.body?.string() ?: return@async null
+                    val keyResponse = json.decodeFromString<KeyResponse>(body)
+                    if (!keyResponse.success || keyResponse.key.isNullOrEmpty()) return@async null
+                    val rawKey = Base64.decode(keyResponse.key, Base64.NO_WRAP)
+                    SecretKeySpec(rawKey, "AES")
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        keyFetching = deferred
+        return try {
+            deferred.await()?.also { key = it }
+        } finally {
+            keyFetching = null
+        }
+    }
+
+    suspend fun encrypt(plainText: String, apiBase: String): String? =
+        withContext(Dispatchers.Default) {
+            val secret = getKey(apiBase) ?: return@withContext null
+            try {
+                val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(Cipher.ENCRYPT_MODE, secret, GCMParameterSpec(128, iv))
+                val ciphertext = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+                val combined = ByteArray(12 + ciphertext.size)
+                System.arraycopy(iv, 0, combined, 0, 12)
+                System.arraycopy(ciphertext, 0, combined, 12, ciphertext.size)
+                Base64.encodeToString(combined, Base64.NO_WRAP)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    suspend fun decrypt(encrypted: String, apiBase: String): String? =
+        withContext(Dispatchers.Default) {
+            val secret = getKey(apiBase) ?: return@withContext null
+            try {
+                val data = Base64.decode(encrypted, Base64.NO_WRAP)
+                if (data.size <= 12) return@withContext null
+                val iv = data.copyOfRange(0, 12)
+                val ciphertext = data.copyOfRange(12, data.size)
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                cipher.init(Cipher.DECRYPT_MODE, secret, GCMParameterSpec(128, iv))
+                String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+            } catch (e: Exception) {
+                null
+            }
+        }
+}
+
+=== app/src/main/java/com/skyangin/client/data/PersistentCookieJar.kt ===
+package com.skyangin.client.data
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
+
+class PersistentCookieJar(context: Context) : CookieJar {
+
+    private val prefs: SharedPreferences
+    private val json = Json { ignoreUnknownKeys = true }
+    private val cache: MutableList<StoredCookie>
+
+    init {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        prefs = EncryptedSharedPreferences.create(
+            context,
+            "sky_cookies",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+        cache = load()
+    }
+
+    @Synchronized
+    override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+        cookies.forEach { cookie ->
+            cache.removeAll { it.name == cookie.name && it.domain == cookie.domain }
+            cache.add(cookie.toStored())
+        }
+        persist()
+    }
+
+    @Synchronized
+    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+        val now = System.currentTimeMillis()
+        return cache
+            .filter { it.expiresAt > now && it.toCookie().matches(url) }
+            .map { it.toCookie() }
+    }
+
+    @Synchronized
+    fun clear() {
+        cache.clear()
+        prefs.edit().clear().apply()
+    }
+
+    private fun persist() {
+        val raw = json.encodeToString(StoredCookieList(cache.toList()))
+        prefs.edit().putString(KEY, raw).apply()
+    }
+
+    private fun load(): MutableList<StoredCookie> {
+        val raw = prefs.getString(KEY, null) ?: return mutableListOf()
+        return try {
+            json.decodeFromString<StoredCookieList>(raw).cookies.toMutableList()
+        } catch (e: Exception) {
+            mutableListOf()
+        }
+    }
+
+    private fun Cookie.toStored() = StoredCookie(
+        name = name,
+        value = value,
+        domain = domain,
+        path = path,
+        expiresAt = expiresAt,
+        secure = secure,
+        httpOnly = httpOnly,
+        hostOnly = hostOnly
+    )
+
+    private fun StoredCookie.toCookie(): Cookie {
+        val builder = Cookie.Builder()
+            .name(name)
+            .value(value)
+            .path(path)
+            .expiresAt(expiresAt)
+            .secure(secure)
+            .httpOnly(httpOnly)
+        return if (hostOnly) {
+            builder.hostOnlyDomain(domain).build()
+        } else {
+            builder.domain(domain).build()
+        }
+    }
+
+    @Serializable
+    private data class StoredCookie(
+        val name: String,
+        val value: String,
+        val domain: String,
+        val path: String,
+        val expiresAt: Long,
+        val secure: Boolean,
+        val httpOnly: Boolean,
+        val hostOnly: Boolean
+    )
+
+    @Serializable
+    private data class StoredCookieList(val cookies: List<StoredCookie>)
+
+    private companion object {
+        private const val KEY = "cookies"
+    }
+}
+
+=== app/src/main/java/com/skyangin/client/data/ApiClient.kt ===
+package com.skyangin.client.data
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.concurrent.ConcurrentHashMap
+
+class ApiClient(
+    baseUrl: String,
+    private val client: OkHttpClient,
+    private val json: Json,
+    private val cookieJar: PersistentCookieJar
+) {
+    private val apiBase = baseUrl.trimEnd('/')
+    private val apiPrefix = "$apiBase/api"
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val authHeaders = mapOf("Content-Type" to "application/json")
+    private val crypto = CryptoManager(client, json)
+    private val cache = ConcurrentHashMap<String, CachedResponse>()
+    private val inFlight = ConcurrentHashMap<String, Deferred<String>>()
+
+    suspend fun login(account: String, loginType: String, password: String, deviceId: String): AuthResponse {
+        val body = buildJsonObject {
+            put("account", account)
+            put("login_type", loginType)
+            put("password", password)
+            put("device_id", deviceId)
+        }.toString()
+
+        val response = execute(
+            path = "/api/auth/login",
+            method = "POST",
+            body = body,
+            headers = authHeaders,
+            authSensitive = true
+        )
+        return json.decodeFromString<AuthResponse>(response)
+    }
+
+    suspend fun register(
+        account: String,
+        loginType: String,
+        password: String,
+        deviceId: String,
+        code: String? = null
+    ): AuthResponse {
+        val body = buildJsonObject {
+            put("account", account)
+            put("login_type", loginType)
+            put("password", password)
+            put("device_id", deviceId)
+            if (!code.isNullOrBlank()) put("code", code)
+        }.toString()
+
+        val response = execute(
+            path = "/api/auth/register",
+            method = "POST",
+            body = body,
+            headers = authHeaders,
+            authSensitive = true
+        )
+        return json.decodeFromString<AuthResponse>(response)
+    }
+
+    suspend fun sendResetCode(email: String): MessageResponse {
+        val response = execute(
+            path = "/api/auth/send-reset-code/$email",
+            method = "POST",
+            body = "{}",
+            headers = authHeaders
+        )
+        return json.decodeFromString<MessageResponse>(response)
+    }
+
+    suspend fun logout() {
+        try {
+            execute(
+                path = "/api/auth/logout",
+                method = "POST",
+                body = null,
+                authSensitive = true
+            )
+        } catch (_: Exception) {
+        }
+    }
+
+    suspend fun me(): User? {
+        val response = execute(
+            path = "/api/auth/me",
+            method = "GET",
+            body = null
+        )
+        return json.decodeFromString<MeResponse>(response).effectiveUser
+    }
+
+    fun clearCookies() {
+        cookieJar.clear()
+    }
+
+    private suspend fun execute(
+        path: String,
+        method: String,
+        body: String?,
+        headers: Map<String, String> = emptyMap(),
+        authSensitive: Boolean = false
+    ): String {
+        val url = if (path.startsWith("http")) path else apiBase + path
+
+        if (authSensitive) crypto.clear()
+
+        return try {
+            if (method.equals("GET", true) && body == null && path.contains("/config/site")) {
+                getCached(url, 10_000L) {
+                    fetchInternal(url, method, body, headers, authSensitive)
+                }
+            } else {
+                fetchInternal(url, method, body, headers, authSensitive)
+            }
+        } finally {
+            if (authSensitive) crypto.clear()
+        }
+    }
+
+    private suspend fun fetchInternal(
+        url: String,
+        method: String,
+        body: String?,
+        headers: Map<String, String>,
+        authSensitive: Boolean
+    ): String = withContext(Dispatchers.IO) {
+        val shouldEncrypt = shouldEncrypt(url, body)
+        val builder = Request.Builder().url(url)
+        headers.forEach { (k, v) -> builder.header(k, v) }
+
+        var finalBody = body
+        if (shouldEncrypt && body != null) {
+            val encrypted = crypto.encrypt(body, apiPrefix)
+            if (encrypted != null) {
+                builder.header("X-Encrypted", "1")
+                finalBody = encrypted
+            }
+        }
+
+        val requestBody = when {
+            finalBody != null -> finalBody.toRequestBody(jsonMediaType)
+            method.equals("POST", true) ||
+                method.equals("PUT", true) ||
+                method.equals("PATCH", true) -> ByteArray(0).toRequestBody(null)
+            else -> null
+        }
+        builder.method(method, requestBody)
+
+        client.newCall(builder.build()).execute().use { response ->
+            val responseBody = response.body?.string() ?: ""
+
+            // 与前端模块一致：auth 敏感请求在拿到响应后、解密前清空 key。
+            if (authSensitive) crypto.clear()
+
+            if (shouldEncrypt && response.header("X-Encrypted") == "1") {
+                val decrypted = crypto.decrypt(responseBody, apiPrefix)
+                if (decrypted != null) return@withContext decrypted
+            }
+            return@withContext responseBody
+        }
+    }
+
+    private fun shouldEncrypt(url: String, body: String?): Boolean {
+        if (!url.contains("/api/")) return false
+        if (url.contains("/api/crypto/key")) return false
+        return body != null
+    }
+
+    private suspend fun getCached(
+        url: String,
+        millis: Long,
+        fetcher: suspend () -> String
+    ): String {
+        cache[url]?.let {
+            if (System.currentTimeMillis() < it.expiresAt) return it.body
+        }
+
+        inFlight[url]?.let { return it.await() }
+
+        val deferred = CoroutineScope(Dispatchers.IO).async { fetcher() }
+        inFlight[url] = deferred
+
+        return try {
+            val body = deferred.await()
+            cache[url] = CachedResponse(body, System.currentTimeMillis() + millis)
+            body
+        } finally {
+            inFlight.remove(url)
+        }
+    }
+
+    private data class CachedResponse(val body: String, val expiresAt: Long)
+}
+
+=== app/src/main/java/com/skyangin/client/data/SessionManager.kt ===
+package com.skyangin.client.data
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.util.UUID
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
+
+class SessionManager(
+    private val context: Context,
+    private val apiClient: ApiClient
+) {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+    }
+
+    private val _state = MutableStateFlow<SessionState>(SessionState.Loading)
+    val state: StateFlow<SessionState> = _state.asStateFlow()
+
+    suspend fun restore() {
+        val prefs = context.dataStore.data.first()
+        val userJson = prefs[USER_JSON] ?: run {
+            _state.value = SessionState.Unauthenticated
+            return
+        }
+
+        _state.value = SessionState.Loading
+
+        val cachedUser = try {
+            json.decodeFromString<User>(userJson)
+        } catch (e: Exception) {
+            null
+        }
+
+        if (cachedUser == null) {
+            clear()
+            return
+        }
+
+        val freshUser = try {
+            apiClient.me()
+        } catch (e: Exception) {
+            null
+        }
+
+        if (freshUser != null) {
+            saveUser(freshUser)
+            _state.value = SessionState.Authenticated(freshUser)
+        } else {
+            clear()
+        }
+    }
+
+    suspend fun onAuthenticated(user: User) {
+        saveUser(user)
+        _state.value = SessionState.Authenticated(user)
+    }
+
+    suspend fun logout() {
+        try {
+            apiClient.logout()
+        } catch (_: Exception) {
+        }
+        clear()
+    }
+
+    suspend fun getDeviceId(): String {
+        val prefs = context.dataStore.data.first()
+        prefs[DEVICE_ID]?.let { return it }
+
+        val newId = UUID.randomUUID().toString()
+        context.dataStore.edit { it[DEVICE_ID] = newId }
+        return newId
+    }
+
+    private suspend fun saveUser(user: User) {
+        context.dataStore.edit { it[USER_JSON] = json.encodeToString(user) }
+    }
+
+    suspend fun clear() {
+        context.dataStore.edit { it.remove(USER_JSON) }
+        _state.value = SessionState.Unauthenticated
+        apiClient.clearCookies()
+    }
+
+    private companion object {
+        val USER_JSON = stringPreferencesKey("user_json")
+        val DEVICE_ID = stringPreferencesKey("device_id")
+    }
+}
+
+sealed interface SessionState {
+    object Loading : SessionState
+    object Unauthenticated : SessionState
+    data class Authenticated(val user: User) : SessionState
+}
+
+=== app/src/main/java/com/skyangin/client/ui/Theme.kt ===
+package com.skyangin.client.ui
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+
+@Composable
+fun SkyTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(),
+        content = content
+    )
+}
+
+=== app/src/main/java/com/skyangin/client/ui/AuthComponents.kt ===
+package com.skyangin.client.ui
+
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import com.skyangin.client.R
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LoginTypeDropdown(
+    loginType: String,
+    onLoginTypeChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val loginTypes = listOf("email", "mobile", "vivo", "huawei")
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = loginType,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.login_type_label)) },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            loginTypes.forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(type) },
+                    onClick = {
+                        onLoginTypeChange(type)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null
+) {
+    var visible by remember { mutableStateOf(false) }
+
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        singleLine = true,
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        supportingText = supportingText?.let { text -> { Text(text) } },
+        trailingIcon = {
+            TextButton(onClick = { visible = !visible }) {
+                Text(
+                    if (visible) stringResource(R.string.hide)
+                    else stringResource(R.string.show)
+                )
+            }
+        },
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+=== app/src/main/java/com/skyangin/client/ui/LoginScreen.kt ===
+package com.skyangin.client.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.skyangin.client.R
+import com.skyangin.client.data.ApiClient
+import com.skyangin.client.data.SessionManager
+import com.skyangin.client.data.User
+import kotlinx.coroutines.launch
+
+@Composable
+fun LoginScreen(
+    apiClient: ApiClient,
+    sessionManager: SessionManager,
+    onLoginSuccess: (User) -> Unit,
+    onNavigateRegister: () -> Unit,
+    onNavigateForgot: () -> Unit
+) {
+    var account by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var loginType by rememberSaveable { mutableStateOf("email") }
+    var deviceId by rememberSaveable { mutableStateOf("") }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val scope = rememberCoroutineScope()
+    val errorMissingUser = stringResource(R.string.error_missing_user)
+    val errorGeneric = stringResource(R.string.error_generic)
+
+    LaunchedEffect(Unit) {
+        deviceId = sessionManager.getDeviceId()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.login_title),
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = stringResource(R.string.login_subtitle),
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = account,
+            onValueChange = { account = it },
+            label = { Text(stringResource(R.string.account_label)) },
+            placeholder = { Text(stringResource(R.string.account_placeholder)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        LoginTypeDropdown(
+            loginType = loginType,
+            onLoginTypeChange = { loginType = it }
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        PasswordField(
+            value = password,
+            onValueChange = { password = it },
+            label = stringResource(R.string.password_label),
+            supportingText = stringResource(R.string.password_security_hint)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = deviceId,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.device_id_label)) },
+            supportingText = { Text(stringResource(R.string.device_id_security_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (error != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = error!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                scope.launch {
+                    isLoading = true
+                    error = null
+                    try {
+                        val result = apiClient.login(account, loginType, password, deviceId)
+                        if (result.success) {
+                            val user = result.effectiveUser
+                            if (user != null) {
+                                onLoginSuccess(user)
+                            } else {
+                                error = errorMissingUser
+                            }
+                        } else {
+                            error = result.message ?: errorGeneric
+                        }
+                    } catch (e: Exception) {
+                        error = e.message ?: errorGeneric
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading && account.isNotBlank() && password.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(stringResource(R.string.login_button))
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            TextButton(onClick = onNavigateRegister) {
+                Text(stringResource(R.string.register_button))
+            }
+            TextButton(onClick = onNavigateForgot) {
+                Text(stringResource(R.string.forgot_password_button))
+            }
+        }
+    }
+}
+
+=== app/src/main/java/com/skyangin/client/ui/RegisterScreen.kt ===
+package com.skyangin.client.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.skyangin.client.R
+import com.skyangin.client.data.ApiClient
+import com.skyangin.client.data.SessionManager
+import com.skyangin.client.data.User
+import kotlinx.coroutines.launch
+
+@Composable
+fun RegisterScreen(
+    apiClient: ApiClient,
+    sessionManager: SessionManager,
+    onRegistered: (User) -> Unit,
+    onBack: () -> Unit
+) {
+    var account by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var loginType by rememberSaveable { mutableStateOf("email") }
+    var deviceId by rememberSaveable { mutableStateOf("") }
+    var code by rememberSaveable { mutableStateOf("") }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var sendingCode by rememberSaveable { mutableStateOf(false) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+    var message by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val scope = rememberCoroutineScope()
+    val errorGeneric = stringResource(R.string.error_generic)
+    val errorMissingUser = stringResource(R.string.error_missing_user)
+    val errorPasswordMismatch = stringResource(R.string.password_mismatch)
+    val smsNotSupported = stringResource(R.string.sms_code_not_supported)
+    val codeSent = stringResource(R.string.code_sent_message)
+    val codeLabel = if (loginType == "mobile") {
+        stringResource(R.string.sms_code_label)
+    } else {
+        stringResource(R.string.verification_code_label)
+    }
+
+    LaunchedEffect(Unit) {
+        deviceId = sessionManager.getDeviceId()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.register_title),
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = account,
+            onValueChange = { account = it },
+            label = { Text(stringResource(R.string.account_label)) },
+            placeholder = { Text(stringResource(R.string.account_placeholder)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        LoginTypeDropdown(
+            loginType = loginType,
+            onLoginTypeChange = { loginType = it }
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        PasswordField(
+            value = password,
+            onValueChange = { password = it },
+            label = stringResource(R.string.password_label),
+            supportingText = stringResource(R.string.password_security_hint)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        PasswordField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            label = stringResource(R.string.confirm_password_label)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = code,
+            onValueChange = { code = it },
+            label = { Text(codeLabel) },
+            supportingText = { Text(stringResource(R.string.code_security_hint)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Button(
+            onClick = {
+                scope.launch {
+                    if (loginType != "email") {
+                        message = smsNotSupported
+                        return@launch
+                    }
+                    sendingCode = true
+                    error = null
+                    message = null
+                    try {
+                        val result = apiClient.sendResetCode(account)
+                        message = if (result.success) {
+                            codeSent
+                        } else {
+                            result.message ?: errorGeneric
+                        }
+                    } catch (e: Exception) {
+                        message = e.message ?: errorGeneric
+                    } finally {
+                        sendingCode = false
+                    }
+                }
+            },
+            enabled = !sendingCode && account.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (sendingCode) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(stringResource(R.string.send_code_button))
+            }
+        }
+
+        if (error != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = error!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        if (message != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = message!!,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                if (password != confirmPassword) {
+                    error = errorPasswordMismatch
+                    return@Button
+                }
+                scope.launch {
+                    isLoading = true
+                    error = null
+                    message = null
+                    try {
+                        val result = apiClient.register(
+                            account = account,
+                            loginType = loginType,
+                            password = password,
+                            deviceId = deviceId,
+                            code = code.ifBlank { null }
+                        )
+                        if (result.success) {
+                            val user = result.effectiveUser
+                            if (user != null) {
+                                onRegistered(user)
+                            } else {
+                                error = errorMissingUser
+                            }
+                        } else {
+                            error = result.message ?: errorGeneric
+                        }
+                    } catch (e: Exception) {
+                        error = e.message ?: errorGeneric
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading && !sendingCode &&
+                account.isNotBlank() && password.isNotBlank() && confirmPassword.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(stringResource(R.string.register_button))
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            TextButton(onClick = onBack) {
+                Text(stringResource(R.string.back_button))
+            }
+        }
+    }
+}
+
+=== app/src/main/java/com/skyangin/client/ui/ForgotPasswordScreen.kt ===
+package com.skyangin.client.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.skyangin.client.R
+import com.skyangin.client.data.ApiClient
+import kotlinx.coroutines.launch
+
+@Composable
+fun ForgotPasswordScreen(
+    apiClient: ApiClient,
+    onBack: () -> Unit
+) {
+    var email by rememberSaveable { mutableStateOf("") }
+    var code by rememberSaveable { mutableStateOf("") }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var message by rememberSaveable { mutableStateOf<String?>(null) }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val scope = rememberCoroutineScope()
+    val errorGeneric = stringResource(R.string.error_generic)
+    val codeSent = stringResource(R.string.code_sent_message)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.reset_password_title),
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text(stringResource(R.string.email_label)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = code,
+            onValueChange = { code = it },
+            label = { Text(stringResource(R.string.verification_code_label)) },
+            supportingText = { Text(stringResource(R.string.code_security_hint)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                scope.launch {
+                    isLoading = true
+                    error = null
+                    message = null
+                    try {
+                        val result = apiClient.sendResetCode(email)
+                        if (result.success) {
+                            message = codeSent
+                        } else {
+                            error = result.message ?: errorGeneric
+                        }
+                    } catch (e: Exception) {
+                        error = e.message ?: errorGeneric
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading && email.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(stringResource(R.string.send_reset_code_button))
+            }
+        }
+
+        if (message != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = message!!,
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        if (error != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = error!!,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        TextButton(onClick = onBack) {
+            Text(stringResource(R.string.back_button))
+        }
+    }
+}
+
+=== app/src/main/java/com/skyangin/client/ui/WelcomeScreen.kt ===
+package com.skyangin.client.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.skyangin.client.R
+import com.skyangin.client.data.User
+
+@Composable
+fun WelcomeScreen(
+    user: User,
+    onLogout: () -> Unit
+) {
+    val displayName = user.displayUsername
+        ?: user.nickname
+        ?: user.account
+        ?: "Sky"
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = stringResource(R.string.welcome_title),
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            text = displayName,
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        user.account?.let {
+            Spacer(Modifier.height(8.dp))
+            Text("${stringResource(R.string.account_label)}: $it")
+        }
+
+        user.platform?.let {
+            Spacer(Modifier.height(4.dp))
+            Text("${stringResource(R.string.platform_label)}: $it")
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        Button(onClick = onLogout) {
+            Text(stringResource(R.string.logout_button))
+        }
+    }
+}
+
+=== app/src/main/java/com/skyangin/client/ui/AppRoot.kt ===
+package com.skyangin.client.ui
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.skyangin.client.data.ApiClient
+import com.skyangin.client.data.SessionManager
+import com.skyangin.client.data.SessionState
+import kotlinx.coroutines.launch
+
+@Composable
+fun AppRoot(
+    sessionManager: SessionManager,
+    apiClient: ApiClient
+) {
+    val state by sessionManager.state.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        sessionManager.restore()
+    }
+
+    when (val s = state) {
+        is SessionState.Loading -> SplashScreen()
+
+        is SessionState.Authenticated -> WelcomeScreen(
+            user = s.user,
+            onLogout = {
+                scope.launch { sessionManager.logout() }
+            }
+        )
+
+        is SessionState.Unauthenticated -> AuthNavHost(
+            sessionManager = sessionManager,
+            apiClient = apiClient
+        )
+    }
+}
+
+@Composable
+private fun AuthNavHost(
+    sessionManager: SessionManager,
+    apiClient: ApiClient
+) {
+    val navController = rememberNavController()
+    val scope = rememberCoroutineScope()
+
+    NavHost(
+        navController = navController,
+        startDestination = "login"
+    ) {
+        composable("login") {
+            LoginScreen(
+                apiClient = apiClient,
+                sessionManager = sessionManager,
+                onLoginSuccess = { user ->
+                    scope.launch {
+                        sessionManager.onAuthenticated(user)
+                    }
+                },
+                onNavigateRegister = { navController.navigate("register") },
+                onNavigateForgot = { navController.navigate("forgot") }
+            )
+        }
+
+        composable("register") {
+            RegisterScreen(
+                apiClient = apiClient,
+                sessionManager = sessionManager,
+                onRegistered = { user ->
+                    scope.launch {
+                        sessionManager.onAuthenticated(user)
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("forgot") {
+            ForgotPasswordScreen(
+                apiClient = apiClient,
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplashScreen() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}

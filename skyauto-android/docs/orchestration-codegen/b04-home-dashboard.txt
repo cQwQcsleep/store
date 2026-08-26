@@ -1,0 +1,394 @@
+// ===============================
+// File: ui/theme/Theme.kt
+// ===============================
+package com.skyangin.client.ui.theme
+
+import android.app.Activity
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+
+private val LightColors = lightColorScheme(
+    primary = Color(0xFF6750A4),
+    secondary = Color(0xFF625B71),
+    tertiary = Color(0xFF7D5260),
+    background = Color(0xFFFFFBFE),
+    surface = Color(0xFFFFFBFE),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onBackground = Color(0xFF1C1B1F),
+    onSurface = Color(0xFF1C1B1F)
+)
+
+private val DarkColors = darkColorScheme(
+    primary = Color(0xFFD0BCFF),
+    secondary = Color(0xFFCCC2DC),
+    tertiary = Color(0xFFEFB8C8),
+    background = Color(0xFF1C1B1F),
+    surface = Color(0xFF1C1B1F),
+    onPrimary = Color(0xFF381E72),
+    onSecondary = Color(0xFF311C3E),
+    onBackground = Color(0xFFE6E1E5),
+    onSurface = Color(0xFFE6E1E5)
+)
+
+@Composable
+fun SkyTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkColors
+        else -> LightColors
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = MaterialTheme.typography,
+        content = content
+    )
+}
+
+// ===============================
+// File: data/model/Models.kt
+// ===============================
+package com.skyangin.client.data.model
+
+data class GameAccount(
+    val id: String,
+    val name: String,
+    val account: String,
+    val platform: String,
+    val status: String,
+    val loginType: String
+)
+
+data class DailyTaskOverview(
+    val totalTasks: Int,
+    val completedTasks: Int
+)
+
+data class FriendStats(
+    val totalFriends: Int,
+    val onlineFriends: Int
+)
+
+// ===============================
+// File: ui/dashboard/DashboardUiState.kt
+// ===============================
+package com.skyangin.client.ui.dashboard
+
+import com.skyangin.client.data.model.DailyTaskOverview
+import com.skyangin.client.data.model.FriendStats
+import com.skyangin.client.data.model.GameAccount
+
+sealed interface DashboardUiState {
+    object Loading : DashboardUiState
+    data class Success(
+        val accounts: List<GameAccount>,
+        val taskOverview: DailyTaskOverview,
+        val friendStats: FriendStats
+    ) : DashboardUiState
+    data class Error(val message: String) : DashboardUiState
+    object Empty : DashboardUiState
+}
+
+// ===============================
+// File: ui/components/CommonStates.kt
+// ===============================
+package com.skyangin.client.ui.components
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun LoadingState(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+fun ErrorState(
+    message: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(text = message, style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            Text("重试")
+        }
+    }
+}
+
+@Composable
+fun EmptyState(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = message, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+// ===============================
+// File: ui/dashboard/DashboardComponents.kt
+// ===============================
+package com.skyangin.client.ui.dashboard
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.skyangin.client.data.model.DailyTaskOverview
+import com.skyangin.client.data.model.FriendStats
+import com.skyangin.client.data.model.GameAccount
+
+@Composable
+fun AccountCard(account: GameAccount, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Person, contentDescription = "Account", modifier = Modifier.size(40.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = account.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(text = "${account.platform} · ${account.loginType}", style = MaterialTheme.typography.bodySmall)
+            }
+            AssistChip(
+                onClick = { /* TODO: Handle status click */ },
+                label = { Text(account.status) }
+            )
+        }
+    }
+}
+
+@Composable
+fun QuickActionGrid(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            QuickActionButton(icon = Icons.Filled.Search, label = "身高查询", onClick = {})
+            QuickActionButton(icon = Icons.Filled.Leaderboard, label = "身高排行", onClick = {})
+        }
+    }
+}
+
+@Composable
+fun QuickActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(onClick = onClick) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(32.dp))
+        }
+        Text(label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
+fun TaskOverviewCard(overview: DailyTaskOverview, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.TaskAlt, contentDescription = "Tasks", modifier = Modifier.size(40.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("每日任务", fontWeight = FontWeight.Bold)
+                LinearProgressIndicator(
+                    progress = if (overview.totalTasks > 0) overview.completedTasks.toFloat() / overview.totalTasks else 0f,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Text("${overview.completedTasks}/${overview.totalTasks}", fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun FriendStatCard(stats: FriendStats, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Group, contentDescription = "Friends", modifier = Modifier.size(40.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text("好友统计", fontWeight = FontWeight.Bold)
+                Text("总计 ${stats.totalFriends} 人", style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Text("${stats.onlineFriends} 在线", color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+// ===============================
+// File: ui/components/SkyBottomBar.kt
+// ===============================
+package com.skyangin.client.ui.components
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+
+enum class BottomDestinations(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Home("home", "首页", Icons.Filled.Home),
+    Tasks("tasks", "任务", Icons.Filled.Task),
+    Friends("friends", "好友", Icons.Filled.Group),
+    Devices("devices", "设备", Icons.Filled.Devices),
+    Profile("profile", "我的", Icons.Filled.Person)
+}
+
+@Composable
+fun SkyBottomBar(
+    currentRoute: String?,
+    onNavigate: (String) -> Unit
+) {
+    NavigationBar {
+        BottomDestinations.values().forEach { dest ->
+            NavigationBarItem(
+                selected = currentRoute == dest.route,
+                onClick = { onNavigate(dest.route) },
+                icon = { Icon(dest.icon, contentDescription = dest.label) },
+                label = { Text(dest.label) }
+            )
+        }
+    }
+}
+
+// ===============================
+// File: ui/dashboard/DashboardScreen.kt
+// ===============================
+package com.skyangin.client.ui.dashboard
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.skyangin.client.ui.components.EmptyState
+import com.skyangin.client.ui.components.ErrorState
+import com.skyangin.client.ui.components.LoadingState
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DashboardScreen(
+    uiState: DashboardUiState,
+    onRetry: () -> Unit,
+    onNavigate: (String) -> Unit,
+    currentRoute: String?
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Sky Auto Tool v8.0") })
+        },
+        bottomBar = {
+            com.skyangin.client.ui.components.SkyBottomBar(currentRoute, onNavigate)
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            when (uiState) {
+                is DashboardUiState.Loading -> LoadingState()
+                is DashboardUiState.Error -> ErrorState(message = uiState.message, onRetry = onRetry)
+                is DashboardUiState.Empty -> EmptyState(message = "暂无账号数据，请添加游戏账号")
+                is DashboardUiState.Success -> DashboardContent(uiState)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardContent(state: DashboardUiState.Success) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        QuickActionGrid()
+        
+        TaskOverviewCard(overview = state.taskOverview)
+        
+        FriendStatCard(stats = state.friendStats)
+        
+        Text(
+            text = "游戏账号",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+        
+        state.accounts.forEach { account ->
+            AccountCard(account = account)
+        }
+    }
+}
+
+// ===============================
+// File: res/values/strings.xml
+// ===============================
+<resources>
+    <string name="app_name">Sky Auto Tool</string>
+    <string name="nav_home">首页</string>
+    <string name="nav_tasks">任务</string>
+    <string name="nav_friends">好友</string>
+    <string name="nav_devices">设备</string>
+    <string name="nav_profile">我的</string>
+    <string name="action_retry">重试</string>
+    <string name="empty_accounts">暂无账号数据，请添加游戏账号</string>
+    <string name="quick_height_search">身高查询</string>
+    <string name="quick_height_rank">身高排行</string>
+</resources>

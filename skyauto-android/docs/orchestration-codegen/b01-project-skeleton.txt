@@ -1,0 +1,530 @@
+===== 目录树 =====
+sky-client/
+├── settings.gradle.kts
+├── build.gradle.kts
+├── gradle/
+│   └── libs.versions.toml
+└── app/
+    ├── build.gradle.kts
+    └── src/
+        └── main/
+            ├── AndroidManifest.xml
+            ├── res/
+            │   └── xml/
+            │       └── network_security_config.xml
+            └── java/
+                └── cn/
+                    └── sky/
+                        └── angin/
+                            └── client/
+                                ├── SkyApplication.kt
+                                ├── crypto/
+                                │   └── CryptoInterceptor.kt
+                                ├── net/
+                                │   ├── ApiService.kt
+                                │   └── NetworkModule.kt
+                                ├── ui/
+                                │   └── MainActivity.kt
+                                └── ...
+
+===== settings.gradle.kts =====
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "SkyClient"
+include(":app")
+
+===== build.gradle.kts =====
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.ksp) apply false
+}
+
+===== gradle/libs.versions.toml =====
+[versions]
+agp = "8.5.0"
+kotlin = "2.0.0"
+ksp = "2.0.0-1.0.21"
+coreKtx = "1.13.1"
+lifecycle = "2.8.2"
+activityCompose = "1.9.0"
+composeBom = "2024.06.00"
+navigationCompose = "2.7.7"
+retrofit = "2.11.0"
+okhttp = "4.12.0"
+kotlinxSerializationJson = "1.6.3"
+retrofitKotlinxSerializationJson = "1.0.0"
+datastore = "1.1.1"
+biometric = "1.2.0-alpha05"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+
+retrofit-core = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-kotlinx-serialization = { group = "com.jakewharton.retrofit", name = "retrofit2-kotlinx-serialization-converter", version.ref = "retrofitKotlinxSerializationJson" }
+okhttp-core = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
+===== app/build.gradle.kts =====
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+android {
+    namespace = "cn.sky.angin.client"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "cn.sky.angin.client"
+        minSdk = 32
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    buildFeatures {
+        compose = true
+    }
+}
+
+dependencies {
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.biometric)
+
+    implementation(libs.retrofit.core)
+    implementation(libs.retrofit.kotlinx.serialization)
+    implementation(libs.okhttp.core)
+    implementation(libs.okhttp.logging)
+    implementation(libs.kotlinx.serialization.json)
+
+    debugImplementation(libs.androidx.ui.tooling)
+}
+
+===== app/src/main/AndroidManifest.xml =====
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".SkyApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Sky Client"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:theme="@style/Theme.SkyClient"
+        tools:targetApi="31">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SkyClient">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
+
+===== app/src/main/res/xml/network_security_config.xml =====
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 生产环境使用 HTTPS，不需要明文。以下配置仅用于本地联调或抓包工具（如 Charles/Fiddler） -->
+    <!-- 如果需要抓包，将 localhost 和你的开发机IP加入 cleartextTrafficPermitted -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- <domain includeSubdomains="true">sky.angin.cn</domain> -->
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" /> <!-- 允许用户安装的证书用于抓包 -->
+        </trust-anchors>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+
+===== app/src/main/java/cn/sky/angin/client/SkyApplication.kt =====
+package cn.sky.angin.client
+
+import android.app.Application
+import cn.sky.angin.client.net.NetworkModule
+
+class SkyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        NetworkModule.init(this)
+    }
+}
+
+===== app/src/main/java/cn/sky/angin/client/crypto/CryptoInterceptor.kt =====
+package cn.sky.angin.client.crypto
+
+import android.util.Base64
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okio.Buffer
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
+class CryptoInterceptor(private val client: OkHttpClient) : Interceptor {
+    private val secureRandom = SecureRandom()
+    private var cachedKey: ByteArray? = null
+
+    @Synchronized
+    private fun getKey(): ByteArray? {
+        cachedKey?.let { return it }
+        val keyRequest = Request.Builder()
+            .url("https://sky.angin.cn/api/crypto/key")
+            .get()
+            .build()
+        client.newCall(keyRequest).execute().use { response ->
+            if (!response.isSuccessful) return null
+            val body = response.body?.string() ?: return null
+            // Expected: {"success":true,"key":"base64"}
+            val keyRegex = """"key"\s*:\s*"([^"]+)"""".toRegex()
+            val match = keyRegex.find(body) ?: return null
+            val keyB64 = match.groupValues[1]
+            cachedKey = Base64.decode(keyB64, Base64.DEFAULT)
+        }
+        return cachedKey
+    }
+
+    private fun encrypt(plainText: String): String? {
+        val key = getKey() ?: return null
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val iv = ByteArray(12).also { secureRandom.nextBytes(it) }
+        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
+        val cipherText = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+        val combined = ByteArray(iv.size + cipherText.size)
+        System.arraycopy(iv, 0, combined, 0, iv.size)
+        System.arraycopy(cipherText, 0, combined, iv.size, cipherText.size)
+        return Base64.encodeToString(combined, Base64.NO_WRAP)
+    }
+
+    private fun decrypt(cipherTextB64: String): String? {
+        val key = getKey() ?: return null
+        val combined = Base64.decode(cipherTextB64, Base64.DEFAULT)
+        if (combined.size < 13) return null
+        val iv = combined.copyOfRange(0, 12)
+        val cipherText = combined.copyOfRange(12, combined.size)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
+        val plainText = cipher.doFinal(cipherText)
+        return String(plainText, Charsets.UTF_8)
+    }
+
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val originalRequest = chain.request()
+        var request = originalRequest
+
+        val isApiPath = request.url.encodedPath.contains("/api/")
+        val isGetMethod = request.method == "GET"
+        val hasBody = request.body != null
+
+        if (isApiPath && !isGetMethod && hasBody) {
+            val originalBody = request.body ?: return chain.proceed(request)
+            val buffer = Buffer()
+            originalBody.writeTo(buffer)
+            val plainText = buffer.readUtf8()
+
+            val encryptedBody = encrypt(plainText) ?: return chain.proceed(request)
+            val newBody = encryptedBody.toRequestBody("text/plain".toMediaType())
+
+            request = request.newBuilder()
+                .header("X-Encrypted", "1")
+                .method(request.method, newBody)
+                .build()
+        }
+
+        val response = chain.proceed(request)
+
+        if (response.headers("X-Encrypted").contains("1")) {
+            val encryptedResponseBody = response.body?.string() ?: return response
+            val decryptedBody = decrypt(encryptedResponseBody) ?: return response
+            val newResponseBody = decryptedBody.toRequestBody(response.body?.contentType())
+            return response.newBuilder()
+                .body(newResponseBody)
+                .build()
+        }
+
+        return response
+    }
+}
+
+===== app/src/main/java/cn/sky/angin/client/net/NetworkModule.kt =====
+package cn.sky.angin.client.net
+
+import android.content.Context
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.TimeUnit
+
+object NetworkModule {
+    private const val BASE_URL = "https://sky.angin.cn/"
+
+    lateinit var okHttpClient: OkHttpClient
+        private set
+
+    lateinit var retrofit: Retrofit
+        private set
+
+    lateinit var apiService: ApiService
+        private set
+
+    val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+        encodeDefaults = true
+    }
+
+    fun init(context: Context) {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        val baseClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(logging)
+            .cookieJar(CookieJarProvider(context))
+            .build()
+
+        val cryptoInterceptor = CryptoInterceptor(baseClient)
+
+        okHttpClient = baseClient.newBuilder()
+            .addInterceptor(cryptoInterceptor)
+            .build()
+
+        retrofit = Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+
+        apiService = retrofit.create(ApiService::class.java)
+    }
+}
+
+===== app/src/main/java/cn/sky/angin/client/net/CookieJarProvider.kt =====
+package cn.sky.angin.client.net
+
+import android.content.Context
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
+import java.util.concurrent.ConcurrentHashMap
+
+class CookieJarProvider(private val context: Context) : CookieJar {
+    private val cookieStore = ConcurrentHashMap<String, List<Cookie>>()
+
+    override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+        cookieStore[url.host] = cookies
+    }
+
+    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+        return cookieStore[url.host] ?: emptyList()
+    }
+}
+
+===== app/src/main/java/cn/sky/angin/client/net/ApiService.kt =====
+package cn.sky.angin.client.net
+
+import kotlinx.serialization.Serializable
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+
+@Serializable
+data class LoginRequest(
+    val account: String,
+    val login_type: String,
+    val password: String,
+    val device_id: String
+)
+
+@Serializable
+data class BaseResponse<T>(
+    val success: Boolean = false,
+    val message: String? = null,
+    val data: T? = null
+)
+
+interface ApiService {
+    @GET("api/config/site")
+    suspend fun getSiteConfig(): BaseResponse<Map<String, String>>
+
+    @GET("api/auth/me")
+    suspend fun getAuthMe(): BaseResponse<String>
+
+    @POST("api/auth/login")
+    suspend fun login(@Body req: LoginRequest): BaseResponse<String>
+
+    @POST("api/auth/logout")
+    suspend fun logout(): BaseResponse<String>
+
+    @POST("api/accounts/add/start")
+    suspend fun addAccountStart(@Body req: LoginRequest): BaseResponse<String>
+
+    @GET("api/accounts/add/status/{task_id}")
+    suspend fun getAddAccountStatus(@Path("task_id") taskId: String): BaseResponse<String>
+}
+
+===== app/src/main/java/cn/sky/angin/client/ui/MainActivity.kt =====
+package cn.sky.angin.client.ui
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import cn.sky.angin.client.ui.theme.SkyClientTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            SkyClientTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Greeting("Sky Client")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun Greeting(name: String) {
+    Text(text = "Hello $name!")
+}
+
+===== app/src/main/java/cn/sky/angin/client/ui/theme/Theme.kt =====
+package cn.sky.angin.client.ui.theme
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+
+private val DarkColorScheme = darkColorScheme(
+    primary = Color(0xFF82B1FF),
+    secondary = Color(0xFF448AFF),
+    tertiary = Color(0xFF2979FF)
+)
+
+private val LightColorScheme = lightColorScheme(
+    primary = Color(0xFF448AFF),
+    secondary = Color(0xFF82B1FF),
+    tertiary = Color(0xFF2979FF)
+)
+
+@Composable
+fun SkyClientTheme(
+    darkTheme: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    MaterialTheme(
+        colorScheme = colorScheme,
+        content = content
+    )
+}
