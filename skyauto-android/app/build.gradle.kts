@@ -15,8 +15,8 @@ android {
         applicationId = "com.skyauto.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.2.5"
+        versionCode = 9
+        versionName = "1.2.6"
 
         buildConfigField("String", "API_BASE_URL", "\"https://sky.angin.cn/api\"")
     }
