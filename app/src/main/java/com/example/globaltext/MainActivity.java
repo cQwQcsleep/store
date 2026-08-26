@@ -145,7 +145,7 @@ public class MainActivity extends Activity {
         modeRow.addView(this.rbStreaming);
         root.addView(modeRow);
         TextView modeHint = new TextView(this);
-        modeHint.setText("标点触发：打字时只在标点处立即处理\n实时处理：每输入一个字立即处理（体验可能较快）");
+        modeHint.setText("标点触发：打字时只在标点处立即处理\n实时处理：每输入一个字立即处理（体验可能较快）\n流式处理：只对新增/修改的片段追加");
         modeHint.setTextSize(11.0f);
         modeHint.setTextColor(Color.rgb(161, 136, 127));
         modeHint.setPadding(0, 0, 0, 16);
