@@ -10,7 +10,9 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,9 +32,13 @@ public class GlobalAccessibilityService extends AccessibilityService {
     private long lastWriteTime = 0;
     private String lastFull = "";
     private String lastSegmentWritten = "";
+    // 上次实际处理文本事件的应用包名，用于识别输入上下文切换（新应用 → 清理流式删除状态）
+    private String lastProcessedPkg = "";
     // 流式模式基线：干净原文（不含追加喵/颜文字）与上次写回结果
     private String streamOriginal = "";
     private String streamLastWritten = "";
+    // 流式模式：用户删除过追加串的句子集合（这些句子的文字段不再自动追加，删喵不补回）
+    private final Set<String> streamNoAppend = new HashSet<>();
     private static final int MAX_TEXT_LEN = 20000;
     // 与 TextProcessor 一致的分句边界：标点/符号/emoji/空白/组合变音符/ZWJ
     private static final Pattern SENTENCE_SPLIT_PATTERN = Pattern.compile("([\\p{P}\\p{S}\\s\\u200D\\p{M}]+)");
@@ -54,9 +60,15 @@ public class GlobalAccessibilityService extends AccessibilityService {
         int type = e.getEventType();
 
         if (type == 32) {
-            resetProcessing();
+            // 仅在应用切换（包名变化）时重置处理状态；同包窗口变化（输入法候选窗、窗口重绘等）
+            // 保留流式删除状态，避免“删喵后被补回”
+            if (!pkg.equals(this.lastProcessedPkg)) {
+                resetProcessing();
+            }
             return;
         }
+        // 记录输入上下文包名：供 type32 判断是否发生应用切换
+        this.lastProcessedPkg = pkg;
 
         CatConfig cfg = this.cachedConfig;
         if (cfg == null) {
@@ -108,16 +120,14 @@ public class GlobalAccessibilityService extends AccessibilityService {
                 scheduleVoiceRewrite(isQQ);
                 return;
             }
-            if (cfg.enableContinuous) {
-                doProcess(isQQ, false, handoff ? s : null);
-                return;
-            }
             safeRecycle(s);
             String mode = cfg.processingMode != null ? cfg.processingMode : CatConfig.MODE_PUNCTUATION;
-            if (CatConfig.MODE_REALTIME.equals(mode)) {
+            // 流式/实时：每次输入变化都进入处理（流式内部做增量，实时连续改写）
+            if (CatConfig.MODE_STREAMING.equals(mode) || CatConfig.MODE_REALTIME.equals(mode)) {
                 doProcess(isQQ, false, null);
                 return;
             }
+            // 标点触发：仅当最后一段以标点结尾时才处理
             AccessibilityNodeInfo root = getRootInActiveWindow();
             if (root == null) {
                 return;
@@ -292,6 +302,8 @@ public class GlobalAccessibilityService extends AccessibilityService {
                 Log.d(TAG, "流式: 检测到删除追加串，保持删除");
                 this.streamOriginal = strippedNow;
                 this.streamLastWritten = fullText;
+                // 记录当前文本所有句子的“无追加”状态：这些句子后续不再自动追加，删喵不补回
+                recordSuspendedFromText(fullText, cfg);
                 inp.recycle();
                 safeRecycle(root);
                 this.processing = false;
@@ -321,7 +333,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
         this.transformWorker.execute(new Runnable() {
             @Override
             public void run() {
-                final String target = processStreaming(original, cc, prevWritten);
+                final String target = rebuildStreaming(original, cc, prevWritten);
                 mainHandler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -361,22 +373,122 @@ public class GlobalAccessibilityService extends AccessibilityService {
         });
     }
 
-    /** 流式加工：先按无颜文字规则处理，再在末尾补颜文字（优先复用上次末尾的，避免写回时随机跳变） */
-    private String processStreaming(String original, CatConfig cfg, String prevWritten) {
-        CatConfig base = cloneConfigWithoutEmoticon(cfg);
-        String text = TextProcessor.process(original, base);
-        if (!cfg.enableRandomEmoticon) {
+    /** 流式加工：只做规则替换 + 逐句追加（跳过用户删除过追加串的句子）+ 末尾颜文字，不改动用户已确认的句子 */
+    private String rebuildStreaming(String original, CatConfig cfg, String prevWritten) {
+        // 1) 规则替换（我→本喵、你→主人、自定义），暂不追加、不加颜文字
+        CatConfig ruleOnly = new CatConfig();
+        ruleOnly.enableAppend = false;
+        ruleOnly.enableRandomEmoticon = false;
+        ruleOnly.enableRuleI = cfg.enableRuleI;
+        ruleOnly.enableRuleYou = cfg.enableRuleYou;
+        ruleOnly.rules = cfg.rules;
+        ruleOnly.appendText = cfg.appendText;
+        ruleOnly.customEmoticons = cfg.customEmoticons;
+        String text = TextProcessor.process(original, ruleOnly);
+        // 2) 逐句追加，跳过用户删除过追加串的句子（删喵不补回）
+        text = appendStreamingSkipSuspended(text, cfg);
+        // 3) 末尾颜文字（复用上次末尾的，避免写回时随机跳变）
+        if (cfg.enableRandomEmoticon) {
+            String emote = extractTrailingEmoticon(prevWritten, cfg);
+            if (emote == null) {
+                String[] emotes = cfg.getActiveEmoticons();
+                if (emotes == null || emotes.length == 0) {
+                    emotes = CatConfig.BUILTIN_EMOTICONS;
+                }
+                emote = emotes.length == 0 ? "" : emotes[this.streamRandom.nextInt(emotes.length)];
+            }
+            if (!emote.isEmpty()) {
+                text = text + " " + emote;
+            }
+        }
+        return text;
+    }
+
+    /** 逐句追加，但对用户删除过追加串的句子跳过（保持其无追加状态） */
+    private String appendStreamingSkipSuspended(String text, CatConfig cfg) {
+        String app = (cfg.appendText == null) ? "" : cfg.appendText;
+        if (app.isEmpty() || !cfg.enableAppend) {
             return text;
         }
-        String emote = extractTrailingEmoticon(prevWritten, cfg);
-        if (emote == null) {
-            String[] emotes = cfg.getActiveEmoticons();
-            if (emotes == null || emotes.length == 0) {
-                emotes = CatConfig.BUILTIN_EMOTICONS;
+        Matcher matcher = SENTENCE_SPLIT_PATTERN.matcher(text);
+        StringBuilder result = new StringBuilder();
+        boolean sawText = false;
+        int pos = 0;
+        while (matcher.find()) {
+            String chunk = text.substring(pos, matcher.start());
+            result.append(chunk);
+            if (!chunk.trim().isEmpty() && !chunk.trim().endsWith(app) && !isSuspended(chunk, cfg)) {
+                result.append(app);
+                sawText = true;
             }
-            emote = emotes.length == 0 ? "" : emotes[this.streamRandom.nextInt(emotes.length)];
+            result.append(matcher.group(1));
+            pos = matcher.end();
         }
-        return (emote.isEmpty()) ? text : text + " " + emote;
+        if (pos < text.length()) {
+            String chunk = text.substring(pos);
+            result.append(chunk);
+            if (!chunk.trim().isEmpty() && !chunk.trim().endsWith(app) && !isSuspended(chunk, cfg)) {
+                result.append(app);
+                sawText = true;
+            }
+        }
+        return sawText ? result.toString().trim() : text.trim();
+    }
+
+    /** 判断文字片段是否处于“用户已删除追加串”状态：等于或延展了某条已删除记录 */
+    private boolean isSuspended(String chunk, CatConfig cfg) {
+        String app = (cfg.appendText == null) ? "" : cfg.appendText;
+        String base = chunk.trim();
+        if (!app.isEmpty()) {
+            while (base.endsWith(app)) {
+                base = base.substring(0, base.length() - app.length());
+            }
+        }
+        if (base.isEmpty()) {
+            return false;
+        }
+        for (String t : this.streamNoAppend) {
+            if (t == null || t.isEmpty()) {
+                continue;
+            }
+            if (base.equals(t)) {
+                return true;
+            }
+            // 用户在已删喵句子上继续输入（“你好”→“你好呀”），仍视为该句不追加；至少 2 字才前缀匹配，避免单字误伤
+            if (t.length() >= 2 && base.startsWith(t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 记录文本中每个句子的“无追加”状态（用户删除追加串后调用） */
+    private void recordSuspendedFromText(String full, CatConfig cfg) {
+        String app = (cfg.appendText == null) ? "" : cfg.appendText;
+        Matcher matcher = SENTENCE_SPLIT_PATTERN.matcher(full);
+        int pos = 0;
+        while (matcher.find()) {
+            addSuspended(stripSegmentTail(full.substring(pos, matcher.start()), app));
+            pos = matcher.end();
+        }
+        if (pos < full.length()) {
+            addSuspended(stripSegmentTail(full.substring(pos), app));
+        }
+    }
+
+    /** 加入一条“无追加”句子；保留更精确（更长）的项，避免集合无限膨胀 */
+    private void addSuspended(String base) {
+        String b = base.trim();
+        if (b.isEmpty()) {
+            return;
+        }
+        this.streamNoAppend.removeIf(t -> t != null && !t.isEmpty() && b.startsWith(t) && t.length() < b.length());
+        for (String t : this.streamNoAppend) {
+            if (t != null && t.startsWith(b) && t.length() > b.length()) {
+                return; // 已有更精确超集
+            }
+        }
+        this.streamNoAppend.add(b);
     }
 
     /** 取上次写回结果末尾的活跃颜文字，无则返回 null */
@@ -455,6 +567,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
         this.lastSegmentWritten = "";
         this.streamOriginal = "";
         this.streamLastWritten = "";
+        this.streamNoAppend.clear();
     }
 
     private void resetProcessing() {
@@ -473,6 +586,7 @@ public class GlobalAccessibilityService extends AccessibilityService {
         this.lastSegmentWritten = "";
         this.streamOriginal = "";
         this.streamLastWritten = "";
+        this.streamNoAppend.clear();
         this.cachedConfig = CatConfig.load(this);
     }
 
@@ -622,12 +736,23 @@ public class GlobalAccessibilityService extends AccessibilityService {
             handleStreamingInput(inp, root, prefix, raw, fullText, cfg);
             return;
         }
-        // 连续输入（独立开关，默认开启，优先于标点/实时 radio）
-        if (cfg.enableContinuous && !isSendClick) {
+        // 实时模式：每输入一字立即连续改写当前段（遇标点/空格/换行/emoji 结算）
+        boolean isRealtime = CatConfig.MODE_REALTIME.equals(cfg.processingMode);
+        if (isRealtime && !isSendClick) {
             handleContinuousInput(inp, root, prefix, raw, fullText, cfg);
             return;
         }
-        // 防堆叠兜底（非连续分支）：本段已改写（lastSet 非空）但从上次结果失配 → 放弃二次加工
+        // 标点模式：仅在标点事件触发时到达这里，按“整体替换+删除保持”处理
+        // 发送兜底：当前行未以标点结尾 → 标点模式不改写，原样发送，避免“不打标点也追加喵”
+        if (isSendClick && !isPunctuationEnding(raw)) {
+            resetSegmentState();
+            this.lastSet = "";
+            this.lastWriteTime = 0L;
+            inp.recycle();
+            safeRecycle(root);
+            this.processing = false;
+            return;
+        }
         if (!this.lastSet.isEmpty() && !raw.startsWith(this.lastSet) && !this.lastSet.startsWith(raw)) {
             resetSegmentState();
             this.lastSet = "";
@@ -658,7 +783,6 @@ public class GlobalAccessibilityService extends AccessibilityService {
             this.processing = false;
             return;
         }
-        boolean isRealtime = CatConfig.MODE_REALTIME.equals(cfg.processingMode);
         if (!isRealtime && this.lastSet.isEmpty()) {
             this.userOriginal = stripAll(raw, cfg);
             Log.d(TAG, "标点首次剥离: " + this.userOriginal);

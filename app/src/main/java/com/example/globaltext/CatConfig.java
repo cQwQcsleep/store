@@ -46,7 +46,8 @@ public class CatConfig {
     public boolean enableRandomEmoticon = true;
     public String processingMode = MODE_REALTIME;
     public boolean globalRewrite = false;
-    public boolean enableContinuous = true;
+    // 历史开关：模式已由 processingMode 三选一决定，此字段仅作兼容保留，不再参与行为判断
+    public boolean enableContinuous = false;
     public boolean enableRuleI = true;
     public boolean enableRuleYou = true;
     public boolean enableAutoHide = false;
