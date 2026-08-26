@@ -343,8 +343,16 @@ public class GlobalAccessibilityService extends AccessibilityService {
             // 首次进入：整段加工
             content = cookChunk(fullText, cfg);
         } else if (fullText.startsWith(refBase)) {
-            // 末尾继续输入：只加工新增部分，既有片段原样保留
-            content = refBase + cookChunk(fullText.substring(refBase.length()), cfg);
+            // 末尾继续输入：只加工新增部分；若新增与上次写在片段尾部的“喵”属于同一文字片段
+            //（junction 处无边界），该尾喵应剥掉，让追加只落到最终句尾（“好的喵”+“可以”→“好的可以喵”）
+            String newRaw = fullText.substring(refBase.length());
+            if (newRaw.isEmpty()) {
+                content = refBase;
+            } else if (sameSegmentJunction(refBase, newRaw)) {
+                content = stripTrailingAppend(refBase, cfg) + cookChunk(newRaw, cfg);
+            } else {
+                content = refBase + cookChunk(newRaw, cfg);
+            }
         } else if (refBase.startsWith(fullText)) {
             // 用户从末尾删除：接受删除，不补回（删喵不补回、连续删除不冒喵）
             content = fullText;
@@ -418,6 +426,30 @@ public class GlobalAccessibilityService extends AccessibilityService {
             }
         }
         return result.toString();
+    }
+
+    /** junction 处是否“同一文字片段续写”：refBase 尾与 newRaw 首都应是文字字符（非边界），否则由标点/符号/emoji 分隔 */
+    private static boolean sameSegmentJunction(String left, String right) {
+        if (left.isEmpty() || right.isEmpty()) {
+            return false;
+        }
+        return isTextChar(left.codePointBefore(left.length())) && isTextChar(right.codePointAt(0));
+    }
+
+    private static boolean isTextChar(int cp) {
+        return Character.isLetterOrDigit(cp);
+    }
+
+    /** 剥离片段尾部的追加串（“喵”），用于续写同一片段时重定位句尾追加 */
+    private String stripTrailingAppend(String s, CatConfig cfg) {
+        String app = (cfg.appendText == null) ? "" : cfg.appendText;
+        String out = s;
+        if (!app.isEmpty()) {
+            while (out.endsWith(app)) {
+                out = out.substring(0, out.length() - app.length());
+            }
+        }
+        return out;
     }
 
     private static int commonPrefixLen(String a, String b) {
