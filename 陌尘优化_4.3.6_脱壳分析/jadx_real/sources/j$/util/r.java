@@ -1,0 +1,22 @@
+package j$.util;
+
+import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
+
+/* loaded from: /workspace/unpacked/classes3.dex */
+public final /* synthetic */ class r implements DoubleConsumer {
+    public final /* synthetic */ Consumer a;
+
+    public /* synthetic */ r(Consumer consumer) {
+        this.a = consumer;
+    }
+
+    @Override // java.util.function.DoubleConsumer
+    public final void accept(double d) {
+        this.a.accept(Double.valueOf(d));
+    }
+
+    public final /* synthetic */ DoubleConsumer andThen(DoubleConsumer doubleConsumer) {
+        return j$.com.android.tools.r8.a.d(this, doubleConsumer);
+    }
+}

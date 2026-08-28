@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:compileSdkVersion="24"
+    android:compileSdkVersionCodename="14"
+    package="com.iqoocg.nm"
+    platformBuildVersionCode="24"
+    platformBuildVersionName="14"
+    android:versionCode="1"
+    android:versionName="4.3.6">
+    <uses-sdk
+        android:minSdkVersion="30"
+        android:targetSdkVersion="35"/>
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23"/>
+    <application
+        android:theme="@style/AppTheme"
+        android:label="陌尘优化"
+        android:icon="@drawable/shier"
+        android:name="com.stub.StubApp"
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:extractNativeLibs="true"
+        android:usesCleartextTraffic="true"
+        android:appComponentFactory="com.tianyu.util.a">
+        <activity
+            android:name="com.vivo.shell.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.vivo.shell.AboutAuthorActivity"
+            android:exported="false"/>
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:authorities="com.iqoocg.nm.shizuku"/>
+        <meta-data
+            android:name="moe.shizuku.client.V3_SUPPORT"
+            android:value="true"/>
+        <activity
+            android:name="com.iqoocg.nm.uvAxEKfRbInEXZKnYp"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+</manifest>

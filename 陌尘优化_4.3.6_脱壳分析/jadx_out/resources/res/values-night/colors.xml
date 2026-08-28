@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="A">#1e1e1f</color>
+    <color name="B">#ffffff</color>
+    <color name="C">#b3b3b3</color>
+    <color name="D">#2c2c2e</color>
+    <color name="E">#e0e0e0</color>
+    <color name="F">#1e1e1f</color>
+    <color name="G">#9e9e9e</color>
+    <color name="H">#33ffffff</color>
+</resources>

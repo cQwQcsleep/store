@@ -1,0 +1,168 @@
+Signature-Version: 1.0
+Created-By: 1.0 (Android)
+SHA1-Digest-Manifest: PqSMDb7/y/m3s0xeqYHKj1p3Tq0=
+X-Android-APK-Signed: 2, 3
+
+Name: AndroidManifest.xml
+SHA1-Digest: dUj1Qs37RZMGz2rd4gvdqxZGdJU=
+
+Name: assets/4XVN0UZF2X.dat
+SHA1-Digest: 7S1azdz/wMPjA+/UnVIljCHjPTQ=
+
+Name: assets/4XVN0UZF2X/arm64-v8a/a.so
+SHA1-Digest: aJnkFcQXhEzW3noP3v6v7AmfgBo=
+
+Name: assets/4XVN0UZF2X/arm64-v8a/b.so
+SHA1-Digest: vH8j8rOLybefLyZzyBDy5FlRpv8=
+
+Name: assets/4XVN0UZF2X/arm64-v8a/c.so
+SHA1-Digest: oJ1C6fhvzUQyI4Frfn2NWoriIxw=
+
+Name: assets/4XVN0UZF2X/arm64-v8a/d.so
+SHA1-Digest: NDwi+dYFxnV48gk6xE4sfklqK1Y=
+
+Name: assets/4XVN0UZF2X/armeabi-v7a/a.so
+SHA1-Digest: AHEWCgaAejPcCK1yEqRtZGlC+8o=
+
+Name: assets/4XVN0UZF2X/armeabi-v7a/b.so
+SHA1-Digest: IZZdl9wsBpruXoB23m+ki7pRt7Q=
+
+Name: assets/4XVN0UZF2X/armeabi-v7a/c.so
+SHA1-Digest: 11puQewLBs0wUEdOlVVC/mAvmEM=
+
+Name: assets/4XVN0UZF2X/armeabi-v7a/d.so
+SHA1-Digest: OjJDzL1RQkL3DnfnQQBmWsoPT3A=
+
+Name: assets/4XVN0UZF2X/x86/a.so
+SHA1-Digest: dT3GGv7Oc+X6FfuAxQi0I/aHGEw=
+
+Name: assets/4XVN0UZF2X/x86/b.so
+SHA1-Digest: JJ9ca+zmNHKuB5mIr5Lzvw6kDck=
+
+Name: assets/4XVN0UZF2X/x86_64/a.so
+SHA1-Digest: ieEfxhLdEozb3Kyg5bLJ9LPg+ck=
+
+Name: assets/4XVN0UZF2X/x86_64/b.so
+SHA1-Digest: wj7+YQBM3KMCjLM4WL2TSpUl+LA=
+
+Name: assets/libjiagu.so
+SHA1-Digest: MpC6O/KnXHhRvsHbgbpBJpYqRBA=
+
+Name: assets/libjiagu_a.so
+SHA1-Digest: NCays3jdQaLJDDD8am9j85uIuwg=
+
+Name: assets/libjiagu_a64.so
+SHA1-Digest: D/4Bl5I0AEpm+wgMUKCXTunCaPQ=
+
+Name: assets/libjiagu_x64.so
+SHA1-Digest: SmnczTJEcbKWbX8KeClRlTq5mkE=
+
+Name: assets/libjiagu_x86.so
+SHA1-Digest: 8W+oZH86XfqnfLESl3cbg8v3tFs=
+
+Name: assets/protected_by_np/ApkControlFlowConfusion_8.0_d39e1cc758184
+ 5e09a55dfe12c79c10c.txt
+SHA1-Digest: /bYcL5PSswuV/tFTYoUACz0eSSA=
+
+Name: assets/声明.txt
+SHA1-Digest: XPK1zdcR2xlVdas98u/WOxNWY2c=
+
+Name: assets/执行/一键还原.sh
+SHA1-Digest: 3b9g4VcfCtnZCnpQzg45Vciki9I=
+
+Name: classes.dex
+SHA1-Digest: 5aEspf50aQ6WOpPBjw/IEdkrZCY=
+
+Name: lib/arm64-v8a/libArkSafe.so
+SHA1-Digest: GEjnadxTTHz7EhnFEBzzu9LEMWU=
+
+Name: lib/arm64-v8a/libtoolChecker.so
+SHA1-Digest: jWgdCgzt2VjfjoTgrPUbHTjY35M=
+
+Name: lib/armeabi-v7a/libArkSafe.so
+SHA1-Digest: uEUOviLAihGVl8nmq6+so5FjL6U=
+
+Name: lib/armeabi-v7a/libtoolChecker.so
+SHA1-Digest: ERoh8adpdUVDKEEw8+v+DHPNLbU=
+
+Name: lib/x86/libArkSafe.so
+SHA1-Digest: NR0JXm7SN7vP598Rps5dVRRbimo=
+
+Name: lib/x86/libtoolChecker.so
+SHA1-Digest: CtFiCf7WBZIldkIf/UDZ5zbihmo=
+
+Name: lib/x86_64/libArkSafe.so
+SHA1-Digest: 3SjPxxQhO8wavTZLCYYQJ7nuOSk=
+
+Name: lib/x86_64/libtoolChecker.so
+SHA1-Digest: Eg2iEhqV1oT6YnLs06QNDtSDqpo=
+
+Name: resources.arsc
+SHA1-Digest: 9YnUvyYqcW0SRjvbh1/lDEt3img=
+
+Name: ۦ/۟
+SHA1-Digest: a4DXyuI3YhsUjBvn5lDBKvn+yBo=
+
+Name: ۦ/۟۟.xml
+SHA1-Digest: 6zeSljQT6E2o2xJc5YoJ0ExPbn8=
+
+Name: ۦ/۟۠
+SHA1-Digest: 7z5fqLSvBG0y7HHdrOu+vYlsqFY=
+
+Name: ۦ/۟ۡ
+SHA1-Digest: wsxr2afmh8nxdDqn5fhHOyzGDwo=
+
+Name: ۦ/۟ۢ.xml
+SHA1-Digest: LxSRqgUnp+LyGLlhyUls/pmy52A=
+
+Name: ۦ/ۣ۟.xml
+SHA1-Digest: PMPySkFgTrYRRQRd001cZ54MgZ4=
+
+Name: ۦ/۟ۤ.xml
+SHA1-Digest: OwEAbg/F3U36rQocrD5xAxyb3Uo=
+
+Name: ۦ/۟ۥ
+SHA1-Digest: LII056biPERnycPI/JBnT5A4ZDw=
+
+Name: ۦ/۟ۦ.xml
+SHA1-Digest: kNRVFl7Ok5jwUc/dfmTemT7lAS0=
+
+Name: ۦ/۟ۧ.xml
+SHA1-Digest: Mf+qA89j0J03ZrsG/JILCHhi+xA=
+
+Name: ۦ/۟ۨ.xml
+SHA1-Digest: Nvn9LyG5fVdG+y/8PZtALZ9yl+c=
+
+Name: ۦ/۠.xml
+SHA1-Digest: YIKkVkJWlmx35f11FobNOLydSV0=
+
+Name: ۦ/۠۟.xml
+SHA1-Digest: 4kycKpZLAk9AsGdWazF6COaXr2I=
+
+Name: ۦ/۠۠.xml
+SHA1-Digest: NqUWpMP56XrDYowYiKwyeMLY/OE=
+
+Name: ۦ/ۡ.xml
+SHA1-Digest: dhj3U0xpqQoMOksv4Z9cE9GOF/U=
+
+Name: ۦ/ۢ.xml
+SHA1-Digest: cIRwYMCZrx0cQhDcnGwEH2SPYbI=
+
+Name: ۦ/ۣ.xml
+SHA1-Digest: 0pLrnvlcXWY+YSJarSKuxw+vkhg=
+
+Name: ۦ/ۤ.xml
+SHA1-Digest: hj0M6umDyBMJMd7XePtvv0OmlxU=
+
+Name: ۦ/ۥ.xml
+SHA1-Digest: M1TmGvD36E4Dj2G9gbfPs1sjeCg=
+
+Name: ۦ/ۦ.xml
+SHA1-Digest: gsiwhjxCl+jRrs40Bmrm4HcX8kk=
+
+Name: ۦ/ۧ.xml
+SHA1-Digest: wdWgueDI6eTsUDbSmIpCnhMPgU4=
+
+Name: ۦ/ۨ.xml
+SHA1-Digest: +5MvyKEYsZKB8EjAFNIIwCZGhcU=
+

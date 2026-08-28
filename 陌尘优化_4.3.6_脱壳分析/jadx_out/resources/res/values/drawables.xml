@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <drawable name="shier">ۦ/۟</drawable>
+    <drawable name="W">ۦ/۠.xml</drawable>
+    <drawable name="Rounded_Corner">ۦ/ۡ.xml</drawable>
+    <drawable name="ic_notifications">ۦ/ۢ.xml</drawable>
+    <drawable name="circle_gray_bg">ۦ/ۣ.xml</drawable>
+    <drawable name="ic_restore">ۦ/ۤ.xml</drawable>
+    <drawable name="ic_settings">ۦ/ۥ.xml</drawable>
+    <drawable name="ic_info_outline">ۦ/ۦ.xml</drawable>
+    <drawable name="Back">ۦ/ۧ.xml</drawable>
+    <drawable name="circle_gray_bg1">ۦ/ۨ.xml</drawable>
+    <drawable name="aaaaa">ۦ/۟۟.xml</drawable>
+    <drawable name="___res_0x7f02000b">ۦ/۟۠</drawable>
+    <drawable name="_11__res_0x7f02000c">ۦ/۟ۡ</drawable>
+    <drawable name="switch_thumb_ios">ۦ/۟ۢ.xml</drawable>
+    <drawable name="switch_track_ios">ۦ/ۣ۟.xml</drawable>
+    <drawable name="Arrow">ۦ/۟ۤ.xml</drawable>
+    <drawable name="___res_0x7f020010">ۦ/۟ۥ</drawable>
+</resources>
