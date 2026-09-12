@@ -15,6 +15,8 @@ import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.KeyEvent;
@@ -44,6 +46,19 @@ public class MainActivity extends Activity {
     public static final int UpdateIntervalPrefDefValue = 1;
 
     private SharedPreferences prefs;
+
+    /** 实时角速度回显轮询（仅在页面可见时运行，4Hz，开销可忽略） */
+    private boolean livePolling = false;
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private final Runnable livePoller = new Runnable() {
+        @Override
+        public void run() {
+            updateLiveReadout();
+            if (livePolling) {
+                uiHandler.postDelayed(this, 250);
+            }
+        }
+    };
 
     private final SharedPreferences.OnSharedPreferenceChangeListener gyroPrefListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
@@ -389,6 +404,10 @@ public class MainActivity extends Activity {
                     Toast.makeText(MainActivity.this, R.string.global_gyro_opening,
                             Toast.LENGTH_SHORT).show();
                     openAccessibilitySettings();
+                } else {
+                    Toast.makeText(MainActivity.this, R.string.global_gyro_activated,
+                            Toast.LENGTH_SHORT).show();
+                    updateLiveReadout();
                 }
             }
         });
@@ -432,20 +451,55 @@ public class MainActivity extends Activity {
         if (!isGlobalGyroServiceEnabled()) {
             status.setText(R.string.global_gyro_status_off);
             btn.setVisibility(View.VISIBLE);
+            updateLiveReadout();
             return;
         }
         btn.setVisibility(View.GONE);
-        if (prefs.getBoolean(GlobalGyroService.PREF_ENABLED, false)
-                && prefs.getBoolean(GlobalGyroService.PREF_ACTIVE, false)) {
+        boolean enabledPref = prefs.getBoolean(GlobalGyroService.PREF_ENABLED, false);
+        boolean active = prefs.getBoolean(GlobalGyroService.PREF_ACTIVE, false);
+        if (enabledPref && active) {
             String target = prefs.getString(GlobalGyroService.PREF_TARGET, null);
             if (target != null) {
                 status.setText(getString(R.string.global_gyro_injecting, target));
             } else {
                 status.setText(R.string.global_gyro_status_on);
             }
+            status.append(" · " + getString(R.string.global_gyro_activated_short));
         } else {
             status.setText(R.string.global_gyro_status_on);
         }
+        updateLiveReadout();
+    }
+
+    /** 实时回显陀螺仪角速度，验证数据链路是否工作 */
+    private void updateLiveReadout() {
+        TextView live = (TextView) findViewById(R.id.gs_live);
+        if (live == null) {
+            return;
+        }
+        boolean sensing = prefs != null
+                && prefs.getBoolean(GlobalGyroService.PREF_ENABLED, false)
+                && isGlobalGyroServiceEnabled()
+                && prefs.getBoolean(GlobalGyroService.PREF_ACTIVE, false);
+        if (sensing) {
+            live.setVisibility(View.VISIBLE);
+            live.setText(String.format(Locale.US, getString(R.string.global_gyro_live),
+                    GlobalGyroService.lastPitchRate, GlobalGyroService.lastRollRate));
+        } else {
+            live.setVisibility(View.GONE);
+        }
+    }
+
+    private void startLivePoll() {
+        if (!livePolling) {
+            livePolling = true;
+            uiHandler.post(livePoller);
+        }
+    }
+
+    private void stopLivePoll() {
+        livePolling = false;
+        uiHandler.removeCallbacks(livePoller);
     }
 
     @Override
@@ -453,6 +507,13 @@ public class MainActivity extends Activity {
         super.onResume();
         ((Switch) findViewById(R.id.s1)).setChecked(isGyroFixServiceRunning());
         refreshGlobalGyroStatus();
+        startLivePoll();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopLivePoll();
     }
 
     @Override
@@ -466,6 +527,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopLivePoll();
         if (prefs != null) {
             prefs.unregisterOnSharedPreferenceChangeListener(gyroPrefListener);
         }

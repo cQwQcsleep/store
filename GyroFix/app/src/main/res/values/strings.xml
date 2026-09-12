@@ -62,6 +62,9 @@
     <string name="global_gyro_status_on">无障碍服务运行中，未开启注入</string>
     <string name="global_gyro_injecting">正在向 %1$s 注入手势</string>
     <string name="global_gyro_opening">请在系统设置中开启「全局陀螺仪」无障碍服务，返回本页后自动生效</string>
+    <string name="global_gyro_activated">已生效，倾斜手机即可向前台应用注入滑动</string>
+    <string name="global_gyro_activated_short">已生效</string>
+    <string name="global_gyro_live">实时数据　俯仰 %1$+.2f rad/s ｜ 横滚 %2$+.2f rad/s</string>
     <string name="global_gyro_no_gyro">当前设备不支持陀螺仪，全局体感不可用</string>
     <string name="global_gyro_old_android">手势注入需要 Android 7.0 及以上的系统</string>
     <string name="global_gyro_hint">横滚（左右倾斜）→ 左右滑动 · 俯仰（前后倾斜）→ 上下滑动</string>

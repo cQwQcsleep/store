@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 新增：全局陀螺仪无障碍服务配置 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
+    android:accessibilityFlags="flagDefault"
     android:canPerformGestures="true"
     android:description="@string/global_gyro_a11y_desc"
     android:settingsActivity="com.gyrofix.MainActivity" />
