@@ -418,6 +418,31 @@ public class MainActivity extends Activity {
             }
         });
 
+        // 灵敏度滑杆（实时保存，服务即时生效）
+        final SeekBar gyroGain = (SeekBar) findViewById(R.id.gyro_gain);
+        final TextView gainLabel = (TextView) findViewById(R.id.gyro_gain_label);
+        int savedGain = prefs.getInt(GlobalGyroService.PREF_GAIN, GlobalGyroService.GAIN_DEFAULT);
+        if (savedGain < 10 || savedGain > 250) {
+            savedGain = GlobalGyroService.GAIN_DEFAULT;
+        }
+        gyroGain.setProgress(savedGain);
+        gainLabel.setText(getString(R.string.global_gyro_gain_x, savedGain));
+        gyroGain.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                gainLabel.setText(getString(R.string.global_gyro_gain_x, progress));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                prefs.edit().putInt(GlobalGyroService.PREF_GAIN, seekBar.getProgress()).apply();
+            }
+        });
+
         prefs.registerOnSharedPreferenceChangeListener(gyroPrefListener);
         refreshGlobalGyroStatus();
     }

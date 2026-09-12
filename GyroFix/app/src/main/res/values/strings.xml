@@ -55,7 +55,7 @@
     <string name="global_gyro_a11y_label">全局陀螺仪</string>
     <string name="global_gyro_a11y_desc">读取真实陀螺仪数据，将设备的倾斜姿态转化为滑动操作注入到前台应用，让不支持陀螺仪的应用也能通过体感操控。</string>
     <string name="global_gyro_title">全局陀螺仪（无障碍体感）</string>
-    <string name="global_gyro_desc">新增能力：后台持续读取真实陀螺仪数据，将横滚/俯仰倾斜转化为左右/上下滑动手势，注入到任意前台应用，让不支持陀螺仪的应用也能用上陀螺仪。</string>
+    <string name="global_gyro_desc">新增能力：后台持续读取真实陀螺仪数据，将横滚/俯仰倾斜转化为连续的按住-拖动操作（近似原生陀螺仪手感），注入到任意前台应用，让不支持陀螺仪的应用也能用上陀螺仪。</string>
     <string name="global_gyro_enable">启用倾斜滑动注入</string>
     <string name="global_gyro_open_settings">前往系统设置开启无障碍服务</string>
     <string name="global_gyro_status_off">无障碍服务未开启，倾斜滑动注入不可用</string>
@@ -67,5 +67,7 @@
     <string name="global_gyro_live">实时数据　俯仰 %1$+.2f rad/s ｜ 横滚 %2$+.2f rad/s</string>
     <string name="global_gyro_no_gyro">当前设备不支持陀螺仪，全局体感不可用</string>
     <string name="global_gyro_old_android">手势注入需要 Android 7.0 及以上的系统</string>
+    <string name="global_gyro_gain">体感灵敏度（大 = 位移幅度更大，默认 100 = 1.0x）</string>
+    <string name="global_gyro_gain_x">灵敏度 %1$d%%</string>
     <string name="global_gyro_hint">横滚（左右倾斜）→ 左右滑动 · 俯仰（前后倾斜）→ 上下滑动</string>
 </resources>
