@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="ScrOff"
+        android:shortcutShortLabel="@string/shortcutoff">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.gyrofix.StopFixActivity"
+            android:targetPackage="com.gyrofix" />
+        <categories android:name="android.shortcut.conversation" />
+        <capability-binding android:key="actions.intent.CREATE_MESSAGE" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="MyCollection"
+        android:shortcutShortLabel="@string/shortcuton">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.gyrofix.StartFixActivity"
+            android:targetPackage="com.gyrofix" />
+        <categories android:name="android.shortcut.conversation" />
+        <capability-binding android:key="actions.intent.CREATE_MESSAGE" />
+    </shortcut>
+</shortcuts>

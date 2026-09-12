@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API < 31 配色（与原版一致） -->
+<resources>
+    <color name="a">#ff4759b8</color>
+    <color name="bg">#ff306ff0</color>
+    <color name="fg">#ffffffff</color>
+    <color name="text">#ffffffff</color>
+</resources>

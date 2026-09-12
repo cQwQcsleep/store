@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- ===== 原版：帮助按钮 ===== -->
+        <Button
+            android:id="@+id/b"
+            style="@android:style/Widget.Material.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:text="@string/help"
+            android:textAllCaps="false"
+            android:textColor="@color/text"
+            android:textSize="17sp" />
+
+        <!-- ===== 原版：服务运行状态 ===== -->
+        <Switch
+            android:id="@+id/s1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/service_state" />
+
+        <!-- ===== 原版：采样率 (Hz) ===== -->
+        <TableLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:stretchColumns="1">
+            <TableRow>
+                <TextView
+                    android:layout_gravity="center|center_horizontal"
+                    android:gravity="center"
+                    android:text="@string/sample_rate" />
+                <EditText
+                    android:id="@+id/e1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@null"
+                    android:gravity="center"
+                    android:hint="200"
+                    android:inputType="number"
+                    android:selectAllOnFocus="true" />
+            </TableRow>
+            <SeekBar
+                android:id="@+id/sb1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                android:max="250"
+                android:min="10" />
+        </TableLayout>
+
+        <!-- ===== 原版：前台通知 / 实时采样率 ===== -->
+        <Switch
+            android:id="@+id/s2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/enable_notification" />
+        <Switch
+            android:id="@+id/s3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/update_notification" />
+
+        <!-- ===== 原版：通知更新间隔 (s) ===== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TableLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:stretchColumns="1">
+                <TableRow>
+                    <TextView
+                        android:layout_gravity="center|center_horizontal"
+                        android:gravity="center"
+                        android:text="@string/update_interval" />
+                    <EditText
+                        android:id="@+id/e2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:gravity="center"
+                        android:hint="1"
+                        android:inputType="number"
+                        android:selectAllOnFocus="true" />
+                </TableRow>
+                <SeekBar
+                    android:id="@+id/sb2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp"
+                    android:max="5"
+                    android:min="1" />
+            </TableLayout>
+        </LinearLayout>
+
+        <!-- ===== 原版：隐藏后台任务卡片 ===== -->
+        <Switch
+            android:id="@+id/s4"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/hide_recent" />
+
+        <!-- ===== 新增：全局陀螺仪（无障碍体感控制），只加不减 ===== -->
+        <TextView
+            android:id="@+id/gs_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="16dp"
+            android:text="@string/global_gyro_title"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/gs_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/global_gyro_desc"
+            android:textSize="12sp" />
+        <Switch
+            android:id="@+id/s5"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/global_gyro_enable" />
+        <Button
+            android:id="@+id/gs_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/global_gyro_open_settings"
+            android:textAllCaps="false" />
+        <TextView
+            android:id="@+id/gs_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp" />
+        <TextView
+            android:id="@+id/gs_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/global_gyro_hint"
+            android:textSize="11sp" />
+    </LinearLayout>
+</ScrollView>

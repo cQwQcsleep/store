@@ -18,3 +18,7 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+
+# 本机构建工具链与临时分析目录（不入库）
+.android-sdk/
+.analysis/
