@@ -10,8 +10,8 @@ android {
         applicationId "com.gyrofix"
         minSdk 21
         targetSdk 34
-        versionCode 12
-        versionName "8.4"
+        versionCode 13
+        versionName "8.5"
     }
 
     buildTypes {

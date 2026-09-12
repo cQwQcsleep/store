@@ -11,7 +11,6 @@ import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.WindowManager;
@@ -20,19 +19,19 @@ import android.view.accessibility.AccessibilityEvent;
 import java.util.Locale;
 
 /**
- * 新增：全局陀螺仪无障碍服务（v8.4：滑动脉冲 + 高频率 + 异步并发）。
+ * 新增：全局陀螺仪无障碍服务（v8.5：连续位置跟踪 + 复合多段手势）。
  * <p>
- * 方案沿袭 v8.2 的「滑动脉冲」思路（累计位移达到阈值 → 从屏幕中心派发一次滑动），
- * 并针对 v8.3 拖动链「难用、无序」的问题做三处增强（功耗不在本轮考虑，先求效果）：
+ * 「一段一段」的根因：旧版每段滑动都从屏幕中心重新按下，且段短促，游戏把每次
+ * 「中心起笔的轻扫」当独立操作。v8.5 修正三点：
  * <ul>
- *   <li><b>更高触发频率</b>：阈值降至 0.16 rad，最小间隔降至 50ms，且触发后采用
- *       「消去式累积」（扣除本次阈值，保留残余角度），持续倾斜时输出更密集连续；</li>
- *   <li><b>异步并发</b>：不再等上一个手势完成后才派发下一个，改为「在途手势计数」，
- *       最多允许 2 个手势在系统队列中并行/排队执行（{@link #MAX_IN_FLIGHT}），
- *       输出节奏不再被单手势时长阻塞；</li>
- *   <li><b>保留既有增强</b>：200Hz 采样（联动原版采样率滑杆）、低通滤波去抖、
- *       幅度映射滑动长度（倾斜越猛滑得越远越快）、灵敏度滑杆实时可调、前台包安全过滤。</li>
+ *   <li><b>位置连续</b>：相邻手势的起点 = 上一段终点，手指位置沿路径连续移动，
+ *       不再跳回屏幕中心重新按下；</li>
+ *   <li><b>复合多段手势</b>：一次注入包含 3 段连续 move（共 300ms）的复合 stroke，
+ *       段内完全无抬起事件，抬起频率从每秒 10+ 次降到约 3 次；</li>
+ *   <li><b>无缝衔接</b>：手势完成回调立即按最新姿态构建下一复合手势，间隙仅毫秒级。</li>
  * </ul>
+ * 输入仍为：200Hz 采样（联动原版采样率滑杆）+ 低通滤波，目标偏移由角速度实时映射
+ * （横滚→水平、俯仰→垂直），静止时平滑拖回中心模拟回正；灵敏度滑杆实时可调。
  */
 public class GlobalGyroService extends AccessibilityService {
 
@@ -52,27 +51,23 @@ public class GlobalGyroService extends AccessibilityService {
     private static final String TAG = "GyroFix/GlobalGyro";
 
     // ---- 手感参数 ----
-    private static final double DEAD_ZONE = 0.05;        // rad/s：低于该角速度视为静止
-    private static final double TRIGGER_RAD = 0.16;      // rad：累计位移达到该值（约 9°）触发一次滑动
-    private static final long MIN_INTERVAL_MS = 50;      // 相邻两次滑动的最小间隔（提高频率）
-    private static final int MAX_IN_FLIGHT = 2;          // 异步并发：最多同时在途的手势数
-    private static final float SWIPE_FRACTION = 0.24f;   // 基础滑动距离占屏幕对应边长的比例
-    private static final float MIN_SWIPE_DIP = 48f;      // 最小滑动距离（dp），保证小屏可感知
-    private static final float MAX_SWIPE_FACTOR = 1.8f;  // 滑动长度随倾斜幅度的放大上限
-    private static final float SMOOTH_RESPONSE = 30f;    // 低通滤波响应速率（/s），滤除手抖更精准
-    private static final int SAMPLE_RATE_DEFAULT = 200;  // 默认采样率 Hz（联动原版采样率滑杆）
-    public static final int GAIN_DEFAULT = 100;          // 默认灵敏度 1.0x
+    private static final double DEAD_ZONE = 0.05;            // rad/s：低于该角速度视为静止
+    private static final float RATE_FULL = 2.0f;             // rad/s：达到该角速度即为满量程偏移
+    private static final float MAX_OFFSET_FRACTION = 0.42f;  // 满量程偏移占屏幕对应边长的比例
+    private static final int COMPOSITE_SEGMENTS = 3;         // 一次复合手势包含的段数
+    private static final long SEGMENT_MS = 100;              // 每段时长，复合手势总时长 = 段数 × 段长
+    private static final float MIN_RETURN_DIP = 12f;         // 距中心小于该值视为已回中
+    private static final float MIN_AWAY_DIP = 24f;           // 目标偏离中心超过该值才视为启动拖动
+    private static final float SMOOTH_RESPONSE = 30f;        // 低通滤波响应速率（/s）
+    private static final int SAMPLE_RATE_DEFAULT = 200;      // 默认采样率 Hz（联动原版采样率滑杆）
+    public static final int GAIN_DEFAULT = 100;              // 默认灵敏度 1.0x
 
     private SensorManager sensorManager;
     private Sensor gyro;
     private boolean sensorRegistered = false;
     private boolean enabled = false;
+    private boolean gestureRunning = false;
     private long lastSensorTs = -1;
-    private double accRoll = 0;   // 累计水平位移（横滚，围绕纵轴）
-    private double accPitch = 0;  // 累计垂直位移（俯仰，围绕横轴）
-    private long lastGestureTime = 0;
-    /** 异步并发：已提交但尚未完成的手势数 */
-    private int inFlight = 0;
     private float density = 1f;
     private int sampleRateHz = SAMPLE_RATE_DEFAULT;
     private float gain = 1f;
@@ -80,6 +75,11 @@ public class GlobalGyroService extends AccessibilityService {
     private float smoothPitch = 0f;
     private float smoothRoll = 0f;
     private boolean smoothInit = false;
+    /** 屏幕尺寸（像素） */
+    private float screenW = 0f;
+    private float screenH = 0f;
+    /** 当前指尖位置（上一段终点，屏幕像素坐标）；null 表示尚未开始（从中心按下） */
+    private float[] fingerPos;
     /** 当前前台应用包名（来自窗口事件，用于注入前的安全过滤与状态展示） */
     private volatile String currentPackage;
 
@@ -105,7 +105,7 @@ public class GlobalGyroService extends AccessibilityService {
             if (dt <= 0 || dt > 0.5) {
                 return;
             }
-            // 一阶低通滤波：滤除手部抖动，输出更平滑精准
+            // 一阶低通滤波：滤除手部抖动
             float alpha = (float) Math.min(0.9, Math.max(0.05, dt * SMOOTH_RESPONSE));
             if (!smoothInit) {
                 smoothPitch = event.values[0];
@@ -115,16 +115,15 @@ public class GlobalGyroService extends AccessibilityService {
                 smoothPitch += (event.values[0] - smoothPitch) * alpha;
                 smoothRoll += (event.values[1] - smoothRoll) * alpha;
             }
-            // 无论注入开关如何，都更新实时回显，方便界面验证数据链路
+            // 实时回显（无论开关，便于验证数据链路）
             lastPitchRate = smoothPitch;
             lastRollRate = smoothRoll;
             if (!enabled) {
                 return;
             }
-            // 死区门控的纯积分；反向倾斜时（符号翻转）重新起算，避免回摆误触发
-            integrate(smoothRoll, dt, true);
-            integrate(smoothPitch, dt, false);
-            maybeFireGesture();
+            if (!gestureRunning) {
+                tryStartComposite(); // 空闲时启动/续接复合手势
+            }
         }
     };
 
@@ -137,7 +136,6 @@ public class GlobalGyroService extends AccessibilityService {
                         updateSensing();
                         Log.i(TAG, "开关变化 -> enabled=" + enabled);
                     } else if (MainActivity.SampleRatePref.equals(key)) {
-                        // 联动原版采样率设置：改采样率后按新周期重新注册监听
                         sampleRateHz = sp.getInt(MainActivity.SampleRatePref, SAMPLE_RATE_DEFAULT);
                         if (sensorRegistered) {
                             reRegisterListener();
@@ -162,7 +160,6 @@ public class GlobalGyroService extends AccessibilityService {
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         gyro = sensorManager == null ? null
                 : sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        // 无论有无陀螺仪都先注册开关监听，保证之后随时可启用/停用
         prefs.registerOnSharedPreferenceChangeListener(prefListener);
         if (gyro == null) {
             Log.w(TAG, "设备无陀螺仪，全局体感不可用");
@@ -173,6 +170,107 @@ public class GlobalGyroService extends AccessibilityService {
         prefs.edit().putBoolean(PREF_ACTIVE, true).apply();
         Log.i(TAG, "无障碍服务已连接, enabled=" + enabled + ", sensor=" + gyro.getName());
     }
+
+    // ==================== 复合连续手势（消除「一段一段」） ====================
+
+    /**
+     * 根据当前角速度计算目标偏移，并派发一个「起点=上一段终点」的多段复合手势。
+     * 手势完成后回调会立即用最新姿态续接，保证路径连续、抬起频率极低。
+     */
+    private void tryStartComposite() {
+        if (!enabled || gestureRunning) {
+            return;
+        }
+        if (currentPackage != null && isBlockedPackage(currentPackage)) {
+            fingerPos = null;
+            return;
+        }
+        if (screenW <= 0 || screenH <= 0) {
+            queryScreenSize();
+        }
+        float cx = screenW / 2f;
+        float cy = screenH / 2f;
+        // 角速度 → 目标偏移（px）：横滚→水平，俯仰→垂直
+        float maxW = screenW * MAX_OFFSET_FRACTION * gain;
+        float maxH = screenH * MAX_OFFSET_FRACTION * gain;
+        float targetX = clamp(cx + smoothRoll / RATE_FULL * maxW, 0, screenW);
+        float targetY = clamp(cy - smoothPitch / RATE_FULL * maxH, 0, screenH); // 屏幕 y 向下
+
+        float minReturn = MIN_RETURN_DIP * density;
+        float minAway = MIN_AWAY_DIP * density;
+        boolean activeInput = Math.abs(smoothRoll) >= DEAD_ZONE
+                || Math.abs(smoothPitch) >= DEAD_ZONE;
+        boolean atCenter = fingerPos == null
+                || (Math.abs(fingerPos[0] - cx) < minReturn && Math.abs(fingerPos[1] - cy) < minReturn);
+        boolean targetAway = Math.abs(targetX - cx) >= minAway || Math.abs(targetY - cy) >= minAway;
+
+        // 静止且已回中 → 结束复合链
+        if (!activeInput && atCenter) {
+            fingerPos = null;
+            return;
+        }
+        // 静止但手指还在偏移处 → 目标回中心（平滑回正，由复合段插值完成）
+        boolean retuning = !activeInput && !atCenter;
+        float destX = retuning || !targetAway ? cx : targetX;
+        float destY = retuning || !targetAway ? cy : targetY;
+
+        // 起点：首次从屏幕中心按下；后续从上一段终点继续 —— 位置永不跳变
+        float startX = fingerPos == null ? cx : fingerPos[0];
+        float startY = fingerPos == null ? cy : fingerPos[1];
+        dispatchComposite(startX, startY, destX, destY);
+        fingerPos = new float[]{destX, destY};
+    }
+
+    /**
+     * 派发一个多段复合手势：从 (fromX,fromY) 经过 COMPOSITE_SEGMENTS 段线性插值到 (toX,toY)，
+     * 段内无抬起（down → 连续 move → hold），系统按 startTime 顺序无缝执行。
+     */
+    private void dispatchComposite(float fromX, float fromY, float toX, float toY) {
+        GestureDescription.Builder builder = new GestureDescription.Builder();
+        float segX = (toX - fromX) / COMPOSITE_SEGMENTS;
+        float segY = (toY - fromY) / COMPOSITE_SEGMENTS;
+        long startTime = 0;
+        float curX = fromX;
+        float curY = fromY;
+        for (int i = 0; i < COMPOSITE_SEGMENTS; i++) {
+            float nx = i == COMPOSITE_SEGMENTS - 1 ? toX : curX + segX;
+            float ny = i == COMPOSITE_SEGMENTS - 1 ? toY : curY + segY;
+            // 段间位移小于 1px（到位后原地保持）：给 1px 微移避免空 stroke
+            if (Math.abs(nx - curX) < 1f && Math.abs(ny - curY) < 1f) {
+                nx += 1f;
+            }
+            Path segment = new Path();
+            segment.moveTo(curX, curY);
+            segment.lineTo(nx, ny);
+            builder.addStroke(new GestureDescription.StrokeDescription(
+                    segment, startTime, SEGMENT_MS, i < COMPOSITE_SEGMENTS - 1));
+            startTime += SEGMENT_MS;
+            curX = nx;
+            curY = ny;
+        }
+
+        gestureRunning = true;
+        boolean submitted = dispatchGesture(builder.build(), new GestureResultCallback() {
+            @Override
+            public void onCompleted(GestureDescription gestureDescription) {
+                gestureRunning = false;
+                tryStartComposite(); // 无缝续接：移动位置连续、抬起频率极低
+            }
+
+            @Override
+            public void onCancelled(GestureDescription gestureDescription) {
+                gestureRunning = false;
+                fingerPos = null; // 被系统打断，从中心重新开始
+                Log.i(TAG, "复合手势被系统取消");
+            }
+        }, mainHandler);
+        if (!submitted) {
+            gestureRunning = false;
+            Log.w(TAG, "复合手势派发失败");
+        }
+    }
+
+    // ==================== 传感器采样 ====================
 
     private int samplingPeriodUs() {
         return sampleRateHz > 200 ? SensorManager.SENSOR_DELAY_FASTEST : 1000000 / Math.max(1, sampleRateHz);
@@ -186,13 +284,13 @@ public class GlobalGyroService extends AccessibilityService {
             sensorRegistered = sensorManager.registerListener(
                     gyroListener, gyro, samplingPeriodUs(), mainHandler);
             lastSensorTs = -1;
-            accRoll = 0;
-            accPitch = 0;
             smoothInit = false;
+            fingerPos = null;
             Log.i(TAG, "注册陀螺仪监听(" + sampleRateHz + "Hz) -> " + sensorRegistered);
         } else if ((!enabled || Build.VERSION.SDK_INT < 24) && sensorRegistered) {
             sensorManager.unregisterListener(gyroListener);
             sensorRegistered = false;
+            fingerPos = null;
             Log.i(TAG, "注销陀螺仪监听");
         }
     }
@@ -209,120 +307,22 @@ public class GlobalGyroService extends AccessibilityService {
         Log.i(TAG, "按新采样率重新注册 -> " + sensorRegistered);
     }
 
-    /** 单轴积分：低于死区不累计；符号翻转时重新起算 */
-    private void integrate(double rate, double dt, boolean horizontal) {
-        if (Math.abs(rate) < DEAD_ZONE) {
-            return;
-        }
-        if (horizontal) {
-            if (accRoll != 0 && Math.signum(accRoll) != Math.signum(rate)) {
-                accRoll = 0;
-            }
-            accRoll += rate * dt;
-        } else {
-            if (accPitch != 0 && Math.signum(accPitch) != Math.signum(rate)) {
-                accPitch = 0;
-            }
-            accPitch += rate * dt;
-        }
-    }
-
-    /** 手势注入核心：累计位移达到阈值即派发一次滑动；采用「消去式」累积提升连续倾斜时的频率 */
-    private void maybeFireGesture() {
-        // 安全护栏：前台为系统 UI 或本应用时不注入
-        if (currentPackage != null && isBlockedPackage(currentPackage)) {
-            accRoll = 0;
-            accPitch = 0;
-            return;
-        }
-        double absRoll = Math.abs(accRoll);
-        double absPitch = Math.abs(accPitch);
-        if (absRoll < TRIGGER_RAD && absPitch < TRIGGER_RAD) {
-            return;
-        }
-        long now = SystemClock.uptimeMillis();
-        if (now - lastGestureTime < MIN_INTERVAL_MS) {
-            return;
-        }
-        if (inFlight >= MAX_IN_FLIGHT) {
-            return; // 异步并发已达上限：让系统队列先消化
-        }
-        boolean horizontal = absRoll >= absPitch;
-        double dominant = horizontal ? accRoll : accPitch;
-        // 幅度精度匹配：以当前平滑角速度的强弱决定滑动长度
-        float strength = horizontal ? Math.abs(smoothRoll) : Math.abs(smoothPitch);
-        boolean fire = fireSwipe(horizontal, Math.signum(dominant), strength);
-        // 消去式累积：主导轴扣除本次阈值（保留残余角加速下一发），副轴清零
-        if (horizontal) {
-            accRoll -= Math.signum(dominant) * TRIGGER_RAD;
-            accPitch = 0;
-        } else {
-            accPitch -= Math.signum(dominant) * TRIGGER_RAD;
-            accRoll = 0;
-        }
-        if (fire) {
-            lastGestureTime = now;
-        }
-    }
-
-    /**
-     * 派发一次滑动手势（异步：不等待完成即返回，由 inFlight 计数控制并发上限）。
-     *
-     * @param strength 当前平滑角速度绝对值（rad/s），决定滑动长度，实现幅度精度匹配
-     * @return 是否成功提交给系统
-     */
-    private boolean fireSwipe(boolean horizontal, double directionSign, float strength) {
+    private void queryScreenSize() {
         DisplayMetrics dm = new DisplayMetrics();
         WindowManager wm = (WindowManager) getSystemService(WINDOW_SERVICE);
         if (wm == null) {
-            return false;
+            return;
         }
         wm.getDefaultDisplay().getRealMetrics(dm);
-        float screenW = dm.widthPixels;
-        float screenH = dm.heightPixels;
-        // 滑动方向约定：横滚向右倾斜(roll>0) -> 向右滑；俯仰向前倾(pitch>0) -> 向上滑
-        float axis = horizontal ? screenW : screenH;
-        float factor = Math.min(MAX_SWIPE_FACTOR,
-                Math.max(0.35f, strength / 1.2f + 0.5f)); // 幅度越大滑得越长
-        float length = Math.max(axis * SWIPE_FRACTION * factor * gain, MIN_SWIPE_DIP * density);
-        length = Math.min(length, axis * SWIPE_FRACTION * MAX_SWIPE_FACTOR * Math.max(1f, gain));
-
-        float cx = screenW / 2f;
-        float cy = screenH / 2f;
-        float delta = length * (float) directionSign;
-        float ex = horizontal ? cx + delta : cx;
-        float ey = horizontal ? cy : cy - delta; // 屏幕 y 轴向下，向上滑用负号
-
-        Path path = new Path();
-        path.moveTo(cx, cy);
-        path.lineTo(ex, ey);
-
-        // 倾斜越猛，手势滑动越快（时长越短），跟手不拖沓
-        long duration = Math.max(40L,
-                Math.min(120L, (long) (length * 0.22f / Math.max(0.6f, strength))));
-        GestureDescription.StrokeDescription stroke =
-                new GestureDescription.StrokeDescription(path, 0, duration);
-        GestureDescription gesture = new GestureDescription.Builder().addStroke(stroke).build();
-
-        inFlight++;
-        boolean submitted = dispatchGesture(gesture, new GestureResultCallback() {
-            @Override
-            public void onCompleted(GestureDescription gestureDescription) {
-                inFlight = Math.max(0, inFlight - 1);
-            }
-
-            @Override
-            public void onCancelled(GestureDescription gestureDescription) {
-                inFlight = Math.max(0, inFlight - 1);
-                Log.i(TAG, "手势被系统取消");
-            }
-        }, mainHandler);
-        if (!submitted) {
-            inFlight = Math.max(0, inFlight - 1);
-            Log.w(TAG, "手势注入提交失败");
-        }
-        return submitted;
+        screenW = dm.widthPixels;
+        screenH = dm.heightPixels;
     }
+
+    private static float clamp(float v, float lo, float hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    // ==================== 前台跟踪与安全护栏 ====================
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -382,6 +382,5 @@ public class GlobalGyroService extends AccessibilityService {
             prefs.unregisterOnSharedPreferenceChangeListener(prefListener);
             prefs.edit().putBoolean(PREF_ACTIVE, false).apply();
         }
-        inFlight = 0;
     }
 }
