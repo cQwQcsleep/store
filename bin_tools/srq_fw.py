@@ -10,6 +10,7 @@ SRQ_8PRO_BLE_F80 固件(.bin) 解析 / 对比 / 打补丁工具
   python3 srq_fw.py strings <file.bin>
   python3 srq_fw.py params <file.bin>          # 设备参数区(0x78563412 magic)
   python3 srq_fw.py table  <file.bin>          # 特征/功能记录表
+  python3 srq_fw.py family <file.bin>          # 版本家族 + 超频状态检测
   python3 srq_fw.py diff   <a.bin> <b.bin>
   python3 srq_fw.py patch  <file.bin> --off 0x.. --hex "AA BB" [--out out.bin]
   python3 srq_fw.py patch  <file.bin> --off 0x.. --str "xxx"   [--out out.bin]
@@ -185,6 +186,37 @@ def cmd_patch(path, off, hexs=None, strs=None, out=None):
     print('      刷写前请确认设备是否校验该签名(建议先在真机/模拟器验证, 或对比官方工具生成的固件)。')
     return 0
 
+# ---------------------------------------------------------------- family
+# 超频/版本检测: 已知常量锚(按家族)
+FAMILY_8_2 = {'len': 52772, 'rpm': 0x2A48, 'pwm': 0x3725, 'u8v': 0x27de}
+FAMILY_8_4 = {'len': 50676, 'rpm': 0x20F0, 'pwm': 0x28CD}
+def cmd_family(path):
+    d = read(path)
+    ver = ''
+    for m in (b'8.4.9', b'8.4.7', b'8.4.3', b'8.4.2', b'8.2.9', b'8.2.5', b'8.2.4'):
+        i = d.find(m)
+        if i >= 0:
+            ver = m.decode(); break
+    print(f'{os.path.basename(path)}  版本串={ver}  大小={len(d)}')
+    fam = None
+    if len(d) == 52772: fam = FAMILY_8_2
+    elif len(d) == 50676: fam = FAMILY_8_4
+    elif len(d) == 51364: fam = {'len': 51364, 'rpm': 0x20C0, 'rpm2': 0x2AFC}
+    if fam:
+        rpm = struct.unpack_from('<H', d, fam['rpm'])[0]
+        print(f'  风扇转速参考 @0x{fam["rpm"]:05x}: {rpm}  '
+              f'{"<-- 超频值(10000/满转FFFF)" if rpm >= 10000 else "(默认 6500~6600)" if rpm <= 7000 else "(中等 7500)"}')
+        if 'pwm' in fam:
+            pwm = struct.unpack_from('<H', d, fam['pwm'])[0]
+            print(f'  PWM/测速周期 @0x{fam["pwm"]:05x}: {pwm}  {"<-- 超频值 6250" if pwm == 6250 else "(默认 31250/43750)"}')
+        if 'rpm2' in fam:
+            rpm2 = struct.unpack_from('<H', d, fam['rpm2'])[0]
+            print(f'  辅助转速 @0x{fam["rpm2"]:05x}: {rpm2}')
+        if 'u8v' in fam:
+            print(f'  随版本递增 u8 @0x{fam["u8v"]:05x}: {d[fam["u8v"]]} (8.2.4=25,8.2.5=29,8.2.9=33)')
+    else:
+        print('  (未知家族, 大小不匹配已知 50676/51364/52772)')
+
 if __name__ == '__main__':
     argv = sys.argv[1:]
     if not argv:
@@ -197,6 +229,7 @@ if __name__ == '__main__':
         elif sub == 'params': cmd_params(argv[1])
         elif sub == 'table': cmd_table(argv[1])
         elif sub == 'diff':  cmd_diff(argv[1], argv[2])
+        elif sub == 'family': cmd_family(argv[1])
         elif sub == 'patch':
             off = None; hx = None; st = None; out = None
             i = 2
